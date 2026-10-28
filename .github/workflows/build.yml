@@ -37,7 +37,48 @@ jobs:
         run: python3 -m unittest discover -s scripts -p 'test_modpack.py' -v
 
       - name: Build with Gradle
-        run: bash ./gradlew build
+        run: |
+          set -o pipefail
+          bash ./gradlew build 2>&1 | tee build-output.log
+
+      - name: Report build and test results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          def annotation(level, message):
+              escaped = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::{level}::{escaped}')
+
+          log = Path('build-output.log')
+          if log.exists() and 'BUILD FAILED' in log.read_text():
+              annotation('error', '\n'.join(log.read_text().splitlines()[-70:]))
+          suites = [ET.parse(path).getroot() for path in Path('build/test-results/test').glob('TEST-*.xml')]
+          if suites:
+              counts = {key: sum(int(suite.get(key, 0)) for suite in suites)
+                        for key in ('tests', 'failures', 'errors', 'skipped')}
+              result = 'NeoForge JUnit: ' + ', '.join(f'{key}={value}' for key, value in counts.items())
+              annotation('notice', result)
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+                  summary.write(result + '\n')
+              for suite in suites:
+                  for failure in list(suite.iter('failure')) + list(suite.iter('error')):
+                      annotation('error', (failure.text or failure.get('message', 'Test failed'))[:6000])
+          PY
+
+      - name: Upload build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Build-Diagnostics
+          path: |
+            build-output.log
+            build/reports/tests/
+            build/test-results/
+          retention-days: 7
 
       - name: Assemble Zombie Apocalypse SMP modpack
         run: |
