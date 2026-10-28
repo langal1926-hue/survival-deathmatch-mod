@@ -6182,27 +6182,37 @@
       ]
     },
     "firstperson_righthand": {
-      "translation": [
-        0.5,
-        1.2,
+      "rotation": [
+        0,
+        0,
         0
       ],
+      "translation": [
+        0,
+        0,
+        -0.75
+      ],
       "scale": [
-        0.235,
-        0.235,
-        0.235
+        0.22,
+        0.22,
+        0.22
       ]
     },
     "firstperson_lefthand": {
-      "translation": [
-        -0.5,
-        1.2,
+      "rotation": [
+        0,
+        0,
         0
       ],
+      "translation": [
+        0,
+        0,
+        -0.75
+      ],
       "scale": [
-        0.235,
-        0.235,
-        0.235
+        0.22,
+        0.22,
+        0.22
       ]
     },
     "ground": {
