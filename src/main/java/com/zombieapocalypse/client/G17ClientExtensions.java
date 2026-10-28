@@ -124,6 +124,11 @@ public final class G17ClientExtensions {
                 poseStack.mulPose(Axis.XP.rotationDegrees(pose.pitch()));
                 poseStack.mulPose(Axis.ZP.rotationDegrees(pose.roll()));
 
+                // With the optional private asset pack, apply the ACTUAL
+                // TaCZ Glock 17 root/gun keyframes. The skinned hands
+                // receive this identical parent motion in G17ViewRenderer.
+                G17LicensedAnimation.applyGunMotion(poseStack,partialTick);
+
                 // Returning true skips Minecraft's additional arm/item pose
                 // while preserving the JSON FIRST_PERSON item model transform.
                 return true;
