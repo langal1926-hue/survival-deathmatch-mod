@@ -4,11 +4,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.CraftingMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.CraftingInput;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.common.NeoForge;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -36,19 +38,31 @@ class SurvivalRestrictionsTest {
 
     @Test
     void inventoryAndWorkbenchInputsHaveNoOutputAndArePreserved(MinecraftServer server) {
-        for (int size : List.of(2, 3)) {
-            var stacks = NonNullList.withSize(size * size, ItemStack.EMPTY);
-            for (int row = 0; row < 2; row++) {
-                for (int col = 0; col < 2; col++) {
-                    stacks.set(row * size + col, new ItemStack(Items.OAK_PLANKS, 4));
-                }
+        var player = FakePlayerFactory.getMinecraft(server.overworld());
+        player.setGameMode(GameType.SURVIVAL);
+        var workbench = new CraftingMenu(1, player.getInventory(),
+                ContainerLevelAccess.create(server.overworld(), BlockPos.ZERO));
+        for (AbstractContainerMenu menu : List.of(player.inventoryMenu, workbench)) {
+            int size = menu == workbench ? 3 : 2;
+            var slots = List.of(1, 2, 1 + size, 2 + size);
+            for (int slot : slots) {
+                menu.getSlot(slot).set(new ItemStack(Items.OAK_PLANKS, 4));
             }
-            var input = CraftingInput.of(size, size, stacks);
-            assertTrue(server.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, input,
-                    server.overworld()).isEmpty(), "Crafting table recipe must be unavailable");
-            assertEquals(16, stacks.stream().mapToInt(ItemStack::getCount).sum(),
-                    "Blocking crafting must not confiscate the ingredients");
+            assertTrue(menu.getSlot(0).getItem().isEmpty(), "No craftable result should be offered");
+            menu.clicked(0, 0, ClickType.PICKUP, player);
+            menu.clicked(0, 0, ClickType.QUICK_MOVE, player);
+            assertTrue(menu.getCarried().isEmpty(), "Clicking the output must not produce an item");
+            for (int slot : slots) {
+                assertEquals(4, menu.getSlot(slot).getItem().getCount(), "Inputs must be retained");
+                menu.getSlot(slot).set(ItemStack.EMPTY);
+            }
         }
+    }
+
+    @Test
+    void resourceReloadCannotRestoreRecipes(MinecraftServer server) throws Exception {
+        server.reloadResources(server.getPackRepository().getSelectedIds()).get(60, TimeUnit.SECONDS);
+        assertTrue(server.getRecipeManager().getRecipes().isEmpty());
     }
 
     @Test
