@@ -2,6 +2,14 @@
 
 Minecraft 1.21.1 + NeoForge 기반의 멀티플레이 좀비 아포칼립스 모드 프로젝트입니다.
 
+## 📦 플레이어용 원파일 모드팩 자동 배포
+
+**이제 플레이어는 TaCZ와 우리 모드를 따로 설치할 필요가 없습니다!** GitHub Actions가 빌드할 때 `Zombie-Apocalypse-SMP.mrpack`을 자동 생성합니다. 해당 파일을 Modrinth App/Prism Launcher로 가져오면 **Minecraft 1.21.1 + NeoForge 21.1.264 + TaCZ + Zombie Apocalypse SMP**가 한 번에 설치됩니다.
+
+[모드팩 받는 방법 및 설치 가이드](docs/MODPACK.md) · [GitHub Actions 모드팩 다운로드](https://github.com/langal1926-hue/survival-deathmatch-mod/actions/workflows/build.yml)
+
+TaCZ 모드는 수정/재포장하지 않습니다. 실제 TaCZ JAR는 Modrinth CDN에서 런처가 다운로드하고, 우리 모드 JAR만 모드팩 안에 포함됩니다. 이는 **클라이언트용 배포**이며, 전용 서버는 같은 모드 버전을 따로 설치해야 합니다.
+
 ## 🔫 현재 무기 엔진: TaCZ 전체 모드 (2026-10-29 전환)
 
 **이제 TaCZ 1.21.1 NeoForge 비공식 이식판을 변경 없이 별도 필수 모드로 사용합니다.** 일반 G17 단독 모델/손 애니메이션/개인용 TaCZ 변환 팩 방식은 중단했습니다. 해당 옛 구현 관련 설명과 테스트 명령어는 아래에 **개발 기록으로만 남아 있으며 현행 사용법이 아닙니다.**
