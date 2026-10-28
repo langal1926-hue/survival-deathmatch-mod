@@ -1,4 +1,6 @@
 {
   "entity.zombieapocalypse.infected": "Infected Zombie",
-  "item.zombieapocalypse.noise_emitter": "Portable Alarm (Prototype)"
+  "item.zombieapocalypse.noise_emitter": "Portable Alarm (Prototype)",
+  "item.zombieapocalypse.g17_pistol": "G17 Pistol (Prototype)",
+  "item.zombieapocalypse.pistol_ammo": "Pistol Ammo"
 }
