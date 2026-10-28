@@ -6,9 +6,9 @@
   "key.zombieapocalypse.reload": "Reload G17",
   "hud.zombieapocalypse.g17": "G17 / 9mm",
   "hud.zombieapocalypse.fire_mode": "SEMI",
-  "hud.zombieapocalypse.reserve": "RESERVE",
-  "hud.zombieapocalypse.reloading": "RELOAD RECOVERY",
-  "hud.zombieapocalypse.empty": "MAG EMPTY",
+  "hud.zombieapocalypse.reserve": "SPARE",
+  "hud.zombieapocalypse.reloading": "RELOAD LOCK",
+  "hud.zombieapocalypse.empty": "EMPTY",
   "hud.zombieapocalypse.ready": "READY",
-  "hud.zombieapocalypse.reload_key": "R: RELOAD"
+  "hud.zombieapocalypse.reload_key": "R RELOAD"
 }
