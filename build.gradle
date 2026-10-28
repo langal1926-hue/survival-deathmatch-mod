@@ -167,6 +167,8 @@ sourceSets.main.resources.srcDir generateModMetadata
 // This copies the licensed model frames / sounds over the default G17 at build
 // time. CI without the local resources keeps the existing G17 fully working.
 tasks.named('processResources', ProcessResources).configure {
+    // Gradle should notice changes when locally licensed assets are updated.
+    inputs.files(fileTree('local/licensed_tacz_g17'))
     doLast {
         def licensed = layout.projectDirectory.dir('local/licensed_tacz_g17').asFile
         if (licensed.isDirectory()) {
