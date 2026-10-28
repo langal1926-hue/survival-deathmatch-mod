@@ -2,6 +2,7 @@ package com.zombieapocalypse.network;
 
 import com.zombieapocalypse.ZombieApocalypseMod;
 import com.zombieapocalypse.client.ClientGunInput;
+import com.zombieapocalypse.client.ClientGunHud;
 import com.zombieapocalypse.item.G17PistolItem;
 import com.zombieapocalypse.item.GunAimState;
 import io.netty.buffer.ByteBuf;
@@ -58,6 +59,23 @@ public final class GunNetwork {
         }
     }
 
+    /** Sent only when the server actually consumed ammunition and completed reload. */
+    public record ReloadFeedback(boolean confirmed) implements CustomPacketPayload {
+        public static final Type<ReloadFeedback> TYPE = new Type<>(
+                ResourceLocation.fromNamespaceAndPath(ZombieApocalypseMod.MOD_ID, "reload_feedback"));
+        public static final StreamCodec<ByteBuf, ReloadFeedback> STREAM_CODEC = StreamCodec.composite(
+                ByteBufCodecs.BOOL, ReloadFeedback::confirmed, ReloadFeedback::new);
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public static void sendReloadFeedback(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, new ReloadFeedback(true));
+    }
+
     public static void sendShotFeedback(ServerPlayer player, boolean aimed) {
         PacketDistributor.sendToPlayer(player, new ShotFeedback(aimed));
     }
@@ -78,5 +96,11 @@ public final class GunNetwork {
         // client code in ClientGunInput instead of accessing it from this class.
         registrar.playToClient(ShotFeedback.TYPE, ShotFeedback.STREAM_CODEC,
                 (payload, context) -> ClientGunInput.applyRecoil(payload.aimed()));
+        registrar.playToClient(ReloadFeedback.TYPE, ReloadFeedback.STREAM_CODEC,
+                (payload, context) -> {
+                    if (payload.confirmed()) {
+                        ClientGunHud.reloadConfirmed();
+                    }
+                });
     }
 }
