@@ -1,5 +1,5 @@
 {
-  "__comment": "User-provided G17 geometry, original mod-local textures. FPS views rotate the barrel (+Z in Blockbench) to camera forward (-Z) and center sights via G17ClientExtensions. Third-person and GUI untouched.",
+  "__comment": "83-cuboid user-contributed G17 model with mod-local textures. FPS model muzzle points along model -Z (toward the world) without Y flip. Camera-space ADS centers +Z rear sight via G17ClientExtensions. Other display transforms unchanged.",
   "parent": "minecraft:block/block",
   "ambientocclusion": false,
   "gui_light": "front",
@@ -6184,7 +6184,7 @@
     "firstperson_righthand": {
       "rotation": [
         0,
-        180,
+        0,
         0
       ],
       "translation": [
@@ -6201,7 +6201,7 @@
     "firstperson_lefthand": {
       "rotation": [
         0,
-        180,
+        0,
         0
       ],
       "translation": [

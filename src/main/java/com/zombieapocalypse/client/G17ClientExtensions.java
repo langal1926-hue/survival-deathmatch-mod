@@ -17,15 +17,16 @@ import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsE
 /**
  * Camera-space transforms for the original 3D G17 model.
  *
- * The Blockbench barrel points along model +Z, whereas the Minecraft camera
- * looks down -Z. The first-person JSON display rotates the model 180 degrees
- * about Y so its sights run straight down the camera's look direction.
+ * The original Blockbench G17 barrel points along model -Z; the rear sight
+ * sits at +Z and the front sight sits near -Z. Since Minecraft's first-person
+ * camera also looks down -Z, this model must NOT be flipped 180 degrees.
+ * That flip made the muzzle face the player (observed in gameplay screenshots).
  *
- * In ADS the rear sight is approximately (x=1, y=21, z=-9) model units.
- * With a 0.25 item scale and a 180 degree Y rotation, its camera-relative
- * offset becomes (+0.109, +0.203, +0.266). The camera-side ADS translation
- * (-0.109, -0.203, -0.70) therefore centers the sight, rather than moving
- * the entire gun past the top of the screen.
+ * The rear sight is approximately (x=1, y=21, z=+22) model units.
+ * The JSON item transform has scale 0.25. Around the vanilla item pivot (8,8,8)
+ * the rear sight is (-0.109, +0.203, +0.219) relative to model center.
+ * ADS translation (+0.109, -0.203, -0.70) centers the rear sight while
+ * the muzzle at z≈-9 remains deeper forward along the camera's -Z axis.
  *
  * IMPORTANT: Return true here so the vanilla generic item-in-hand position
  * and rotations are NOT layered on top of our explicit aiming transform.
@@ -37,7 +38,7 @@ public final class G17ClientExtensions {
     private static final float HIP_X = 0.52F;
     private static final float HIP_Y = -0.50F;
     private static final float HIP_Z = -0.78F;
-    private static final float ADS_X = -0.109F;
+    private static final float ADS_X = 0.109F;
     private static final float ADS_Y = -0.203F;
     private static final float ADS_Z = -0.70F;
 
