@@ -21,5 +21,8 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Verify G17 model and textures
+        run: python3 scripts/check_g17_assets.py
+
       - name: Build with Gradle
         run: bash ./gradlew build
