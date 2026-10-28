@@ -51,18 +51,23 @@ def check():
                 f"Element {i}/{side} invalid UV: {face['uv']}"
             )
 
-    # Regression check for the original gun's axis: Blockbench +Z is the
-    # muzzle direction, but first person looks down camera -Z.
-    # 180 degrees about model-center Y reverses the barrel direction.
+    # Regression guard: muzzle is at model NEGATIVE Z (around -10), while
+    # rear iron sight/handgrip are at POSITIVE Z (around +22). The camera
+    # looks toward -Z, so a 180-degree first-person Y flip is wrong:
+    # it was observed in-game as the muzzle facing back at the player.
     right = model["display"]["firstperson_righthand"]
     left = model["display"]["firstperson_lefthand"]
     for display in (right, left):
-        assert display["rotation"] == [0, 180, 0], "FPS barrel must point away from camera"
+        assert display["rotation"] == [0, 0, 0], (
+            "First-person G17 muzzle at -Z must face AWAY from the camera"
+        )
         assert display["scale"] == [0.25, 0.25, 0.25], "Update ADS calibration if FPS scale changes"
 
-    # Coarse camera-space check using rear sight geometry at x=1, y=21, z=-9
-    # and front sight at x=1, y=21, z=+22 (original Blockbench units).
-    # This doesn't render Minecraft; it just guards against disappearing sights.
+    # Confirm geometry contains sights at both barrel ends, and that the
+    # rear (+Z) is closer to the camera than the muzzle (-Z).
+    assert any(e["from"][2] < -9 and e["to"][2] < -9 for e in elements)
+    assert any(e["from"][2] > 19 and e["to"][2] > 21 for e in elements)
+    # This is only a mathematical placement guard, not an in-game screenshot.
     import re
     pose_java = (
         ROOT / "src/main/java/com/zombieapocalypse/client/G17ClientExtensions.java"
@@ -73,15 +78,16 @@ def check():
         return float(match.group(1))
 
     s = right["scale"][0]
-    rear_x = constant("ADS_X") + (16 - 1 - 8) * s / 16
+    # No rotation. Item pivot at (8, 8, 8), 16 model units to one block.
+    rear_x = constant("ADS_X") + (1 - 8) * s / 16
     rear_y = constant("ADS_Y") + (21 - 8) * s / 16
-    rear_z = constant("ADS_Z") + (16 - (-9) - 8) * s / 16
-    front_z = constant("ADS_Z") + (16 - 22 - 8) * s / 16
+    rear_z = constant("ADS_Z") + (22 - 8) * s / 16
+    muzzle_z = constant("ADS_Z") + (-9 - 8) * s / 16
     assert abs(rear_x) < 0.03 and abs(rear_y) < 0.03, (
         f"Rear iron sight not at screen center: {rear_x=}, {rear_y=}"
     )
-    assert front_z < rear_z < -0.2, (
-        f"Barrel must point forward and rear sight must be visible: {front_z=}, {rear_z=}"
+    assert muzzle_z < rear_z < -0.2, (
+        f"Barrel must point forward and rear sight must be visible: {muzzle_z=}, {rear_z=}"
     )
     assert "return true;" in pose_java, (
         "The G17 ADS pose must skip the vanilla duplicate item transforms"
