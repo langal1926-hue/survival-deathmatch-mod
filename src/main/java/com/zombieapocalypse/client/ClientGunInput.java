@@ -101,9 +101,17 @@ public final class ClientGunInput {
     @SubscribeEvent
     public static void onFov(ViewportEvent.ComputeFov event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null && mc.options.getCameraType().isFirstPerson() && adsBlend > 0.001F) {
-            double factor = 1.0D - (1.0D - ADS_ZOOM) * adsBlend;
-            event.setFOV(event.getFOV() * factor);
+        if (mc.player != null && mc.options.getCameraType().isFirstPerson()
+                && mc.player.getMainHandItem().is(ModItems.G17_PISTOL.get())) {
+            // Temporarily relax ADS zoom while handling the magazine; this
+            // matches the gun/arm keyframe timeline instead of leaving the
+            // camera zoomed in while the gun is lowered for reload.
+            float reload = G17AnimationState.sample(0.5F, adsBlend).reload();
+            float visibleAim = adsBlend * (1.0F - reload * 0.96F);
+            if (visibleAim > 0.001F) {
+                double factor = 1.0D - (1.0D - ADS_ZOOM) * visibleAim;
+                event.setFOV(event.getFOV() * factor);
+            }
         }
     }
 
