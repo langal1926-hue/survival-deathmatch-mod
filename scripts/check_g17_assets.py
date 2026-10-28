@@ -68,7 +68,7 @@ def check():
         ROOT / "src/main/java/com/zombieapocalypse/client/G17ClientExtensions.java"
     ).read_text(encoding="utf-8")
     def constant(name):
-        match = re.search(r"\\b" + name + r"\\s*=\\s*(-?[0-9.]+)F", pose_java)
+        match = re.search(r"\b" + name + r"\s*=\s*(-?[0-9.]+)F", pose_java)
         assert match is not None, f"Missing ADS calibration constant: {name}"
         return float(match.group(1))
 
