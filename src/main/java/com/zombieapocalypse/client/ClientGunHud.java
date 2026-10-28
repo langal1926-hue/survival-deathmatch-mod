@@ -58,7 +58,12 @@ public final class ClientGunHud {
 
     /** Called only after the server has accepted and completed a reload. */
     public static void reloadConfirmed() {
-        Minecraft.getInstance().execute(() -> reloadLockTicks = RELOAD_LOCK_TICKS);
+        Minecraft.getInstance().execute(() -> {
+            reloadLockTicks = RELOAD_LOCK_TICKS;
+            // Keep the G17 cosmetic timeline in sync with server-confirmed
+            // reload recovery. An unsuccessful reload does not animate.
+            G17AnimationState.reloadConfirmed();
+        });
     }
 
     /** Called by the existing client tick handler. */
