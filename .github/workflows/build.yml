@@ -39,7 +39,7 @@ jobs:
       - name: Build with Gradle
         run: |
           set -o pipefail
-          bash ./gradlew build 2>&1 | tee build-output.log
+          bash ./gradlew build runGameTestServer 2>&1 | tee build-output.log
 
       - name: Report build and test results
         if: always()
@@ -56,6 +56,10 @@ jobs:
           log = Path('build-output.log')
           if log.exists() and 'BUILD FAILED' in log.read_text():
               annotation('error', '\n'.join(log.read_text().splitlines()[-70:]))
+          if log.exists():
+              for line in log.read_text().splitlines():
+                  if any(text in line for text in ('GameTest', 'tests passed', 'tests failed', 'tests done', 'Required test')):
+                      annotation('notice', line)
           suites = [ET.parse(path).getroot() for path in Path('build/test-results/test').glob('TEST-*.xml')]
           if suites:
               counts = {key: sum(int(suite.get(key, 0)) for suite in suites)

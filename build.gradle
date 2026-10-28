@@ -47,7 +47,11 @@ base {
 // Mojang ships Java 21 to end users in 1.21.1, so mods should target Java 21.
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+// These world tests are available in development runs, but excluded from release JARs.
+sourceSets { gameTest }
+
 neoForge {
+    addModdingDependenciesTo sourceSets.gameTest
     // Specify the version of NeoForge to use.
     version = project.neo_version
 
@@ -113,6 +117,7 @@ neoForge {
         // multi mod projects should define one per mod
         "${mod_id}" {
             sourceSet(sourceSets.main)
+            sourceSet(sourceSets.gameTest)
         }
     }
 }
@@ -127,6 +132,7 @@ configurations {
 }
 
 dependencies {
+    gameTestImplementation sourceSets.main.output
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testImplementation "net.neoforged:testframework:${neo_version}"
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

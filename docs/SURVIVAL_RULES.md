@@ -25,7 +25,7 @@
 
 ## 검증
 
-`bash gradlew build`는 실제 NeoForge 테스트 환경에서 JUnit 회귀 테스트를 실행합니다.
+`bash gradlew build runGameTestServer`는 실제 NeoForge 테스트 환경에서 JUnit 회귀 테스트와 월드 GameTest를 실행합니다.
 테스트는 서버 데이터팩 로드 후 조합법 제거, 제작 입력 보존, 생존/모험 파괴 차단,
 크리에이티브 편집 예외, 양조 취소와 상자/인벤토리 접근 유지를 확인합니다.
 
