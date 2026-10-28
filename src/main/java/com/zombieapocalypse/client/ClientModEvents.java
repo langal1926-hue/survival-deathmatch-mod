@@ -3,6 +3,7 @@ package com.zombieapocalypse.client;
 import com.zombieapocalypse.ZombieApocalypseMod;
 import com.zombieapocalypse.entity.ModEntities;
 import net.minecraft.client.renderer.entity.ZombieRenderer;
+import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -16,5 +17,6 @@ public final class ClientModEvents {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntities.INFECTED.get(), ZombieRenderer::new);
+        event.registerEntityRenderer(ModEntities.PISTOL_BULLET.get(), ThrownItemRenderer::new);
     }
 }
