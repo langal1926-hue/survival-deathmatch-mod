@@ -168,6 +168,38 @@ public final class G17AnimationState {
                 bobX, bobY, breathing);
     }
 
+    /**
+     * Lightweight item-model frame for separately moving slide and magazine.
+     * This is evaluated only for the local first-person pistol. Every target
+     * model is made from our own contributed Blockbench G17 geometry.
+     *
+     * 0 = normal, .2 = slide partly back, .4 = slide fully back,
+     * .6 = magazine partially extracted, .8 = magazine extracted.
+     */
+    public static float modelFrame(float partialTick) {
+        float p = Mth.clamp(partialTick, 0.0F, 1.0F);
+        if (reloadTicks >= 0) {
+            float t = Mth.clamp((reloadTicks + p) / RELOAD_TICKS, 0.0F, 1.0F);
+            if (t >= 0.32F && t < 0.68F) {
+                return 0.8F;
+            }
+            if (t >= 0.20F && t < 0.83F) {
+                return 0.6F;
+            }
+            return 0.0F;
+        }
+        if (shootTicks >= 0) {
+            float t = Mth.clamp((shootTicks + p) / SHOOT_TICKS, 0.0F, 1.0F);
+            if (t < 0.24F) {
+                return 0.4F;
+            }
+            if (t < 0.56F) {
+                return 0.2F;
+            }
+        }
+        return 0.0F;
+    }
+
     /** Piecewise smooth keyframe curve: (time,value) pairs, no external data. */
     private static float track(float time, float[] points) {
         if (time <= points[0]) {
