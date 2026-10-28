@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.BrewingStandBlock;
 import net.minecraft.world.level.block.CartographyTableBlock;
 import net.minecraft.world.level.block.CrafterBlock;
 import net.minecraft.world.level.block.CraftingTableBlock;
-import net.minecraft.world.level.block.EnchantmentTableBlock;
+import net.minecraft.world.level.block.EnchantingTableBlock;
 import net.minecraft.world.level.block.GrindstoneBlock;
 import net.minecraft.world.level.block.LoomBlock;
 import net.minecraft.world.level.block.SmithingTableBlock;
@@ -156,7 +156,7 @@ public final class SurvivalRuleEvents {
                 || block instanceof LoomBlock
                 || block instanceof CartographyTableBlock
                 || block instanceof BrewingStandBlock
-                || block instanceof EnchantmentTableBlock
+                || block instanceof EnchantingTableBlock
                 || block instanceof CrafterBlock
                 || block == Blocks.SMITHING_TABLE;
     }
