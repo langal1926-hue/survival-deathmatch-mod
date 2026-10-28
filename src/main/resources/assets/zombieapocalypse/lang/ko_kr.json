@@ -10,5 +10,10 @@
   "hud.zombieapocalypse.reloading": "장전 후딜",
   "hud.zombieapocalypse.empty": "탄창 없음",
   "hud.zombieapocalypse.ready": "준비 완료",
-  "hud.zombieapocalypse.reload_key": "R 장전"
+  "hud.zombieapocalypse.reload_key": "R 장전",
+  "item.zombieapocalypse.construction_planks": "건축용 가문비 판자",
+  "item.zombieapocalypse.construction_cobblestone": "건축용 조약돌",
+  "item.zombieapocalypse.construction_stone_bricks": "건축용 석재 벽돌",
+  "item.zombieapocalypse.construction_glass": "건축용 유리",
+  "item.zombieapocalypse.construction_chest": "건축용 상자"
 }
