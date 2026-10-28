@@ -5,10 +5,10 @@ import com.mojang.math.Axis;
 import com.zombieapocalypse.ZombieApocalypseMod;
 import com.zombieapocalypse.item.ModItems;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
-import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
@@ -19,24 +19,41 @@ import net.neoforged.neoforge.client.event.RenderHandEvent;
 import net.neoforged.neoforge.client.event.RenderPlayerEvent;
 
 /**
- * Adds player-skinned pistol grip arms without replacing Minecraft's existing
- * first-person item renderer.
+ * G17 first-person grip rig. Uses two independently placed player-skin arms
+ * parented to the actual animated gun pose, not free-floating screen positions.
  *
- * The previous iteration cancelled RenderHandEvent and drew the G17 with its
- * JSON item transform *and* a second manual pose. It also drew raw PlayerRenderer
- * arms without the standard Minecraft arm-space transforms. The result was
- * enormous disconnected arms and the gun outside the screen.
+ * The earlier renderer moved the item and wrists in separately calculated
+ * camera positions. A primary hand was mistakenly placed LEFT of a right-hand
+ * gun in ADS, and the oversized support hand overlapped the slide. The
+ * reference TaCZ gun rig gives distinct right/left hand nodes under a shared
+ * moving gun parent; this independent implementation follows that design.
  *
- * Arms use the vanilla model-space correction and *the exact same shared
- * weapon origin* as G17ClientExtensions during equip, ADS, shot and reload.
- * This prevents the gun from moving up to center while the skinned hands
- * remain down at the screen corners. The support hand rises toward the
- * magazine during its server-confirmed reload track.
- * The G17 model itself is still rendered ONCE by the vanilla item pipeline.
+ * No third-party hand model, animation, transforms or assets are copied.
+ * PlayerRenderer supplies the player's real skin and sleeve textures.
  */
 @EventBusSubscriber(modid = ZombieApocalypseMod.MOD_ID, value = Dist.CLIENT,
         bus = EventBusSubscriber.Bus.GAME)
 public final class G17ViewRenderer {
+    // Original camera-space grip positions relative to the already calibrated
+    // G17 item pivot (its model contains a rear grip at model +Z). A positive
+    // X for a RIGHT-handed main hand is deliberate: the previous sign was
+    // negative and made the right hand look like the left hand in ADS.
+    private static final float MAIN_HIP_X = 0.22F;
+    private static final float MAIN_ADS_X = 0.17F;
+    private static final float MAIN_HIP_Y = -0.25F;
+    private static final float MAIN_ADS_Y = -0.27F;
+    private static final float MAIN_Z = 0.08F;
+
+    private static final float SUPPORT_HIP_X = 0.27F;
+    private static final float SUPPORT_ADS_X = 0.19F;
+    private static final float SUPPORT_HIP_Y = -0.35F;
+    private static final float SUPPORT_ADS_Y = -0.34F;
+    private static final float SUPPORT_Z = -0.05F;
+
+    // Vanilla PlayerRenderer first-person arms are quite bulky relative to a
+    // pistol. A smaller mesh prevents hiding the slide and iron sights.
+    private static final float GRIP_ARM_SCALE = 0.69F;
+
     private G17ViewRenderer() {}
 
     @SubscribeEvent
@@ -56,105 +73,109 @@ public final class G17ViewRenderer {
         PlayerRenderer renderer = (PlayerRenderer) mc.getEntityRenderDispatcher()
                 .getRenderer(player);
         float rawAds = Mth.clamp(ClientGunInput.getAimBlend(), 0.0F, 1.0F);
-        G17AnimationState.Pose motion =
+        G17AnimationState.Pose animation =
                 G17AnimationState.sample(event.getPartialTick(), rawAds);
         int mainSide = player.getMainArm() == HumanoidArm.RIGHT ? 1 : -1;
 
-        // IMPORTANT: gun and skin-textured arms now use the SAME calculated
-        // camera-space weapon origin. The previously independent offsets
-        // left the hands in the bottom corners during center-screen ADS.
+        // Exactly the transform used by the gun item renderer. Local wrist
+        // transforms below are children of it, so they follow rotation as
+        // well as position during draw, ADS, shots and magazine handling.
         G17ClientExtensions.HeldPose held = G17ClientExtensions.calculatePose(
-                rawAds, motion, mainSide, event.getEquipProgress());
+                rawAds, animation, mainSide, event.getEquipProgress());
 
-        // Keep Minecraft's normal 3D item rendering. Only supply the skinned
-        // arms here; never render the G17 a second time.
-        drawArm(event.getPoseStack(), event.getMultiBufferSource(),
+        drawRiggedArm(event.getPoseStack(), event.getMultiBufferSource(),
                 event.getPackedLight(), renderer, player, mainSide, mainSide,
-                held, false, motion);
+                false, held, animation);
 
-        // In ADS, support the rear of the grip. When reloading, reach up
-        // toward the magazine while the gun is moved/tilted with the same
-        // timeline. Respect actual offhand items.
-        if ((held.aim() > 0.08F || motion.supportReach() > 0.06F)
-                && player.getOffhandItem().isEmpty()) {
-            drawArm(event.getPoseStack(), event.getMultiBufferSource(),
+        // Unlike the earlier always-visible left fist, the support arm
+        // appears with ADS and while handling the magazine. It is deliberately
+        // smaller and behind/below the sights, never in the bore line.
+        if (player.getOffhandItem().isEmpty()
+                && (held.aim() > 0.20F || animation.supportReach() > 0.05F)) {
+            drawRiggedArm(event.getPoseStack(), event.getMultiBufferSource(),
                     event.getPackedLight(), renderer, player, -mainSide,
-                    mainSide, held, true, motion);
+                    mainSide, true, held, animation);
         }
+
+        // Do NOT cancel RenderHandEvent: Minecraft draws the real 3D G17 once
+        // afterward, retaining the working iron-sight calibration and model
+        // override states (slide/magazine), without a duplicate gun.
     }
 
-    /**
-     * Calibrated camera-space wrist targets relative to the exact G17 gun
-     * origin. This is a lightweight first-person grip rig with no dependence
-     * on external models or animation files.
-     *
-     * The gun geometry is anchored by G17ClientExtensions. The hands must
-     * follow that SAME x/y/z when ADS, reload, equip or recoil moves the
-     * weapon. Relative wrist offsets make the poses stable across states.
-     */
-    private static void drawArm(PoseStack poseStack, MultiBufferSource buffers,
-                                int light, PlayerRenderer renderer,
-                                AbstractClientPlayer player, int armSide,
-                                int mainSide, G17ClientExtensions.HeldPose held,
-                                boolean supporting, G17AnimationState.Pose motion) {
+    private static void drawRiggedArm(PoseStack poseStack,
+                                      MultiBufferSource buffer,
+                                      int packedLight,
+                                      PlayerRenderer renderer,
+                                      AbstractClientPlayer player,
+                                      int armSide,
+                                      int mainSide,
+                                      boolean support,
+                                      G17ClientExtensions.HeldPose held,
+                                      G17AnimationState.Pose motion) {
         poseStack.pushPose();
+
+        // First apply the *actual* weapon transform. This reproduces a
+        // simple parent/child bone hierarchy and removes camera-space drift.
+        poseStack.translate(held.x(), held.y(), held.z());
+        poseStack.mulPose(Axis.YP.rotationDegrees(held.yaw()));
+        poseStack.mulPose(Axis.XP.rotationDegrees(held.pitch()));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(held.roll()));
+
         float ads = held.aim();
         float x;
         float y;
         float z;
-
-        if (!supporting) {
-            // Trigger-finger grip: near the pistol's rear (+Z) handle.
-            // While ADS comes in, the wrist moves LEFT and UP with the gun
-            // instead of staying in the bottom-right screen corner.
-            x = held.x() - mainSide * Mth.lerp(ads, 0.16F, 0.26F);
-            // Small lift at hip fire, larger lift in ADS via the gun's own
-            // upward motion. Keep the forearm below the centered sight.
-            y = held.y() + Mth.lerp(ads, 0.00F, -0.12F)
-                    + motion.reload() * 0.12F;
-            z = held.z() + Mth.lerp(ads, 0.08F, 0.12F);
+        if (!support) {
+            // Trigger hand is on the RIGHT of the pistol when mainSide=+1.
+            // It holds the rear grip, not the slide. Mirrored for left-handed
+            // players and slightly inboard during ADS.
+            x = mainSide * Mth.lerp(ads, MAIN_HIP_X, MAIN_ADS_X);
+            y = Mth.lerp(ads, MAIN_HIP_Y, MAIN_ADS_Y);
+            z = MAIN_Z;
         } else {
-            // Support palm: converge below the sights during ADS. On reload,
-            // bring the free hand HIGHER to the magazine well (previously it
-            // was lowered by 0.22 and often vanished below the hotbar).
+            // The other hand stays on the OPPOSITE side. During reload its
+            // wrist rises to the magazine well while its animated parent
+            // gun lowers. This avoids the hand disappearing below the HUD.
             float reach = motion.supportReach();
-            float baseX = held.x() - mainSide * Mth.lerp(ads, 0.48F, 0.17F);
-            float baseY = held.y() - Mth.lerp(ads, 0.13F, 0.20F);
-            float baseZ = held.z() + 0.06F;
-            x = Mth.lerp(reach, baseX, held.x() - mainSide * 0.30F);
-            y = Mth.lerp(reach, baseY, held.y() + 0.34F);
-            z = Mth.lerp(reach, baseZ, held.z() + 0.10F);
+            x = -mainSide * Mth.lerp(ads, SUPPORT_HIP_X, SUPPORT_ADS_X);
+            y = Mth.lerp(ads, SUPPORT_HIP_Y, SUPPORT_ADS_Y);
+            z = SUPPORT_Z;
+
+            x = Mth.lerp(reach, x, -mainSide * 0.13F);
+            y = Mth.lerp(reach, y, 0.44F);
+            z = Mth.lerp(reach, z, 0.10F);
         }
 
-        // The wrist targets track the same equip/lower/recoil translation as
-        // the pistol. Do not subtract equipProgress a second time.
-        poseStack.translate(x, y, z);
+        poseStack.translate(x + motion.bobX() * 0.15F,
+                y - motion.bobY() * 0.15F, z);
 
-        float gripYaw = supporting ? Mth.lerp(ads, 34.0F, 20.0F)
-                : Mth.lerp(ads, 39.0F, 27.0F);
-        poseStack.mulPose(Axis.YP.rotationDegrees(
-                armSide * gripYaw + held.yaw() * 0.45F
-                        + armSide * motion.reloadAngle() * 9.0F));
+        // Local wrist pitch: the arms start BELOW the gun and travel up to
+        // meet the grip. They are not allowed to swing in front of the sights.
+        float localYaw = support
+                ? Mth.lerp(ads, 31.0F, 17.0F)
+                : Mth.lerp(ads, 34.0F, 21.0F);
+        poseStack.mulPose(Axis.YP.rotationDegrees(armSide * localYaw));
         poseStack.mulPose(Axis.XP.rotationDegrees(
-                held.pitch() * 0.35F - motion.shot() * 7.0F
-                        - (supporting ? motion.supportReach() * 9.0F : 0.0F)));
+                support ? (-18.0F - 10.0F * motion.supportReach()) : -6.0F));
         poseStack.mulPose(Axis.ZP.rotationDegrees(
-                held.roll() * 0.22F
-                        + armSide * (supporting ? 5.0F : -3.0F) * ads));
-        poseStack.scale(0.82F, 0.82F, 0.82F);
+                armSide * (support ? 10.0F : -4.0F)));
 
-        // Vanilla's required PlayerRenderer arm model coordinate correction.
-        // Omitting this correction previously caused giant dislocated arms.
+        // Keep the actual player skin / sleeves, just decrease geometry
+        // footprint to fit a one-block pistol. Scale BEFORE the vanilla arm
+        // model-to-camera-space correction.
+        poseStack.scale(GRIP_ARM_SCALE, GRIP_ARM_SCALE, GRIP_ARM_SCALE);
+
+        // Minecraft's first-person arm-model correction, not a TaCZ rig.
         poseStack.translate(armSide * -1.0F, 3.6F, 3.5F);
         poseStack.mulPose(Axis.ZP.rotationDegrees(armSide * 120.0F));
         poseStack.mulPose(Axis.XP.rotationDegrees(200.0F));
         poseStack.mulPose(Axis.YP.rotationDegrees(armSide * -135.0F));
         poseStack.translate(armSide * 5.6F, 0.0F, 0.0F);
 
-        if (armSide > 0) {
-            renderer.renderRightHand(poseStack, buffers, light, player);
+        if (armSide == 1) {
+            renderer.renderRightHand(poseStack, buffer, packedLight, player);
         } else {
-            renderer.renderLeftHand(poseStack, buffers, light, player);
+            renderer.renderLeftHand(poseStack, buffer, packedLight, player);
         }
         poseStack.popPose();
     }
@@ -165,7 +186,7 @@ public final class G17ViewRenderer {
             return;
         }
 
-        // Keep the already-tested two-hand third-person aiming appearance.
+        // Preserve the previously accepted multiplayer third-person aim pose.
         var model = event.getRenderer().getModel();
         if (event.getEntity().getMainArm() == HumanoidArm.RIGHT) {
             model.rightArmPose = HumanoidModel.ArmPose.CROSSBOW_HOLD;
