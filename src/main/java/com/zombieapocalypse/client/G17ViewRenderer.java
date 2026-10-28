@@ -27,10 +27,10 @@ import net.neoforged.neoforge.client.event.RenderPlayerEvent;
  * arms without the standard Minecraft arm-space transforms. The result was
  * enormous disconnected arms and the gun outside the screen.
  *
- * Arms use the vanilla model-space correction but stay low enough to avoid
- * blocking the center-aligned iron sights. The actual pistol is rendered once
- * through the vanilla item pipeline; G17ClientExtensions owns its complete
- * hip-fire/ADS camera-space item transform.
+ * Arms use the vanilla model-space correction, and their original animation
+ * tracks follow G17AnimationState (equip, server-confirmed shooting/reload,
+ * ADS and movement). They stay low enough not to cover the iron sights.
+ * The G17 model itself is still rendered ONCE by the vanilla item pipeline.
  */
 @EventBusSubscriber(modid = ZombieApocalypseMod.MOD_ID, value = Dist.CLIENT,
         bus = EventBusSubscriber.Bus.GAME)
@@ -53,21 +53,25 @@ public final class G17ViewRenderer {
         AbstractClientPlayer player = mc.player;
         PlayerRenderer renderer = (PlayerRenderer) mc.getEntityRenderDispatcher()
                 .getRenderer(player);
-        float ads = Mth.clamp(ClientGunInput.getAimBlend(), 0.0F, 1.0F);
+        float rawAds = Mth.clamp(ClientGunInput.getAimBlend(), 0.0F, 1.0F);
+        G17AnimationState.Pose motion = G17AnimationState.sample(0.5F, rawAds);
+        float ads = rawAds * (1.0F - motion.reload() * 0.96F);
         int side = player.getMainArm() == HumanoidArm.RIGHT ? 1 : -1;
 
-        // Do NOT cancel the event. Vanilla renders the G17 after
-        // these arms, preventing duplicate item rendering.
+        // Keep vanilla item rendering. The hands get their own synchronized
+        // animation tracks but never duplicate the 3D pistol render.
         drawArm(event.getPoseStack(), event.getMultiBufferSource(),
                 event.getPackedLight(), renderer, player, side, ads,
-                event.getEquipProgress(), false);
+                event.getEquipProgress(), false, motion);
 
-        // Hip-fire is one-handed. Only add the support arm during ADS, and
-        // never if the player is already holding something in that hand.
-        if (ads > 0.08F && player.getOffhandItem().isEmpty()) {
+        // ADS: gently bring the offhand under the grip. Reload: the support
+        // hand reaches toward the magazine, even when not currently ADS.
+        // Avoid drawing a second hand if another item occupies the offhand.
+        if ((ads > 0.08F || motion.supportReach() > 0.06F)
+                && player.getOffhandItem().isEmpty()) {
             drawArm(event.getPoseStack(), event.getMultiBufferSource(),
                     event.getPackedLight(), renderer, player, -side, ads,
-                    event.getEquipProgress(), true);
+                    event.getEquipProgress(), true, motion);
         }
     }
 
@@ -80,7 +84,7 @@ public final class G17ViewRenderer {
                                 int light, PlayerRenderer renderer,
                                 AbstractClientPlayer player, int side,
                                 float ads, float equipProgress,
-                                boolean supporting) {
+                                boolean supporting, G17AnimationState.Pose motion) {
         poseStack.pushPose();
 
         // Use compact vanilla-like coordinates so only the FOREARMS enter
@@ -95,11 +99,30 @@ public final class G17ViewRenderer {
                 ? Mth.lerp(ads, -0.78F, -0.77F)
                 : Mth.lerp(ads, -0.66F, -0.72F);
         float depth = supporting ? -0.92F : -0.84F;
-        poseStack.translate(side * horizontal,
-                vertical - equipProgress * 0.50F, depth);
-        poseStack.mulPose(Axis.YP.rotationDegrees(
-                side * (supporting ? Mth.lerp(ads, 36.0F, 18.0F)
-                        : Mth.lerp(ads, 40.0F, 18.0F))));
+
+        // Same 25-tick reload track drives both the 3D gun and the forearms:
+        // main hand lowers with the grip, support hand reaches for magazine.
+        if (supporting) {
+            horizontal -= motion.supportReach() * 0.12F;
+            vertical += motion.supportReach() * 0.11F;
+            depth -= motion.supportReach() * 0.07F;
+        } else {
+            horizontal -= motion.reload() * 0.07F;
+            vertical -= motion.reload() * 0.25F;
+            vertical += motion.shot() * 0.055F;
+            vertical -= motion.equip() * 0.18F;
+            depth += motion.shot() * 0.065F;
+        }
+
+        poseStack.translate(side * (horizontal + motion.bobX() * 0.5F),
+                vertical - equipProgress * 0.50F - motion.bobY() * 0.5F,
+                depth);
+        float gripYaw = supporting ? Mth.lerp(ads, 36.0F, 18.0F)
+                : Mth.lerp(ads, 40.0F, 18.0F);
+        poseStack.mulPose(Axis.YP.rotationDegrees(side
+                * (gripYaw + motion.reloadAngle() * (supporting ? 7.0F : 13.0F))));
+        poseStack.mulPose(Axis.XP.rotationDegrees(
+                -motion.shot() * 5.0F + motion.reload() * 6.0F));
         poseStack.scale(0.88F, 0.88F, 0.88F);
 
         // Vanilla's established PlayerRenderer.renderRight/LeftHand matrix.
