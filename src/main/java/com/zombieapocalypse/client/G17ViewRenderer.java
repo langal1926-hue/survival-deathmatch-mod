@@ -85,7 +85,7 @@ public final class G17ViewRenderer {
 
         drawRiggedArm(event.getPoseStack(), event.getMultiBufferSource(),
                 event.getPackedLight(), renderer, player, mainSide, mainSide,
-                false, held, animation);
+                false, held, animation, event.getPartialTick());
 
         // Unlike the earlier always-visible left fist, the support arm
         // appears with ADS and while handling the magazine. It is deliberately
@@ -94,7 +94,7 @@ public final class G17ViewRenderer {
                 && (held.aim() > 0.20F || animation.supportReach() > 0.05F)) {
             drawRiggedArm(event.getPoseStack(), event.getMultiBufferSource(),
                     event.getPackedLight(), renderer, player, -mainSide,
-                    mainSide, true, held, animation);
+                    mainSide, true, held, animation, event.getPartialTick());
         }
 
         // Do NOT cancel RenderHandEvent: Minecraft draws the real 3D G17 once
@@ -111,7 +111,8 @@ public final class G17ViewRenderer {
                                       int mainSide,
                                       boolean support,
                                       G17ClientExtensions.HeldPose held,
-                                      G17AnimationState.Pose motion) {
+                                      G17AnimationState.Pose motion,
+                                      float partialTick) {
         poseStack.pushPose();
 
         // First apply the *actual* weapon transform. This reproduces a
@@ -120,6 +121,11 @@ public final class G17ViewRenderer {
         poseStack.mulPose(Axis.YP.rotationDegrees(held.yaw()));
         poseStack.mulPose(Axis.XP.rotationDegrees(held.pitch()));
         poseStack.mulPose(Axis.ZP.rotationDegrees(held.roll()));
+
+        // Follow the SAME actual licensed G17 gun/root motion as the item.
+        // This is the parent node, so both hands remain attached during
+        // TaCZ draw/fire/reload animation clips instead of drifting away.
+        G17LicensedAnimation.applyGunMotion(poseStack,partialTick);
 
         float ads = held.aim();
         float x;
@@ -148,6 +154,10 @@ public final class G17ViewRenderer {
 
         poseStack.translate(x + motion.bobX() * 0.15F,
                 y - motion.bobY() * 0.15F, z);
+
+        // The actual licensed right/left G17 hand animation track. Applied
+        // under the moving gun parent, still using the player's real skin.
+        G17LicensedAnimation.applyHandMotion(poseStack, armSide == 1, partialTick);
 
         // Local wrist pitch: the arms start BELOW the gun and travel up to
         // meet the grip. They are not allowed to swing in front of the sights.
