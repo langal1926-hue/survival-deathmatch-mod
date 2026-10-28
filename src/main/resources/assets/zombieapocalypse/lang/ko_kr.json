@@ -1,4 +1,6 @@
 {
   "entity.zombieapocalypse.infected": "감염자",
-  "item.zombieapocalypse.noise_emitter": "휴대용 경보기 (시험용)"
+  "item.zombieapocalypse.noise_emitter": "휴대용 경보기 (시험용)",
+  "item.zombieapocalypse.g17_pistol": "G17 권총 (프로토타입)",
+  "item.zombieapocalypse.pistol_ammo": "권총 탄약"
 }
