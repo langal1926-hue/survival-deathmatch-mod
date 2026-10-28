@@ -31,6 +31,11 @@ public final class ClientGunInput {
 
     private ClientGunInput() {}
 
+    /** Smoothed ADS fraction shared by first-person arms and pistol position. */
+    public static float getAimBlend() {
+        return adsBlend;
+    }
+
     private static boolean holdingG17(Minecraft mc) {
         return mc.player != null && mc.screen == null
                 && mc.player.getMainHandItem().is(ModItems.G17_PISTOL.get());
