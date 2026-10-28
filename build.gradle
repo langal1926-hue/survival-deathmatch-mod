@@ -162,23 +162,13 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
 sourceSets.main.resources.srcDir generateModMetadata
 
     
-// The user has a separate commercial license for TaCZ G17 assets.
-// Keep the original JAR and converted model, animation and sounds OUT of Git.
-// This copies the licensed model frames / sounds over the default G17 at build
-// time. CI without the local resources keeps the existing G17 fully working.
+// Optional local licensed Glock 17 resource overlay. This is a normal Gradle
+// CopySpec, not a doLast that captures a script instance (configuration-cache
+// unsafe). When installed it is the last source and overrides the default
+// G17 model variants/sounds while leaving the rest of the mod untouched.
 tasks.named('processResources', ProcessResources).configure {
-    // Gradle should notice changes when locally licensed assets are updated.
-    inputs.files(fileTree('local/licensed_tacz_g17'))
-    doLast {
-        def licensed = layout.projectDirectory.dir('local/licensed_tacz_g17').asFile
-        if (licensed.isDirectory()) {
-            logger.lifecycle('Overlaying locally licensed TaCZ G17 resources')
-            copy {
-                from licensed
-                into destinationDir
-            }
-        }
-    }
+    from(layout.projectDirectory.dir('local/licensed_tacz_g17'))
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 // To avoid having to run "generateModMetadata" manually, make it run on every project reload
