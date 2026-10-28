@@ -18,5 +18,13 @@ public final class ModEntities {
                     .sized(0.6F, 1.95F)
                     .build("infected"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<PistolBullet>> PISTOL_BULLET =
+            ENTITY_TYPES.register("pistol_bullet", () -> EntityType.Builder
+                    .<PistolBullet>of(PistolBullet::new, MobCategory.MISC)
+                    .sized(0.13F, 0.13F)
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build("pistol_bullet"));
+
     private ModEntities() {}
 }
