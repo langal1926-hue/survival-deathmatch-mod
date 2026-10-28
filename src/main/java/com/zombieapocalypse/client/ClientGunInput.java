@@ -68,6 +68,7 @@ public final class ClientGunInput {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        G17AnimationState.tick();
         ClientGunHud.clientTick();
         Minecraft mc = Minecraft.getInstance();
         boolean holding = holdingG17(mc);
@@ -114,6 +115,8 @@ public final class ClientGunInput {
                 return;
             }
 
+            // Fire arm/gun recoil only when the server accepted a REAL shot.
+            G17AnimationState.shotConfirmed();
             float pitchKick = aimed ? 0.85F : 1.85F;
             float yawKick = (mc.player.getRandom().nextFloat() - 0.5F) * (aimed ? 0.5F : 1.4F);
             mc.player.setXRot(Mth.clamp(mc.player.getXRot() - pitchKick, -90.0F, 90.0F));
