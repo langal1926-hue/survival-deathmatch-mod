@@ -51,9 +51,9 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 sourceSets { gameTest }
 
 neoForge {
-    addModdingDependenciesTo sourceSets.gameTest
     // Specify the version of NeoForge to use.
     version = project.neo_version
+    addModdingDependenciesTo sourceSets.gameTest
 
     parchment {
         mappingsVersion = project.parchment_mappings_version
