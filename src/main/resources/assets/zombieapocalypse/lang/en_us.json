@@ -2,5 +2,6 @@
   "entity.zombieapocalypse.infected": "Infected Zombie",
   "item.zombieapocalypse.noise_emitter": "Portable Alarm (Prototype)",
   "item.zombieapocalypse.g17_pistol": "G17 Pistol (Prototype)",
-  "item.zombieapocalypse.pistol_ammo": "Pistol Ammo"
+  "item.zombieapocalypse.pistol_ammo": "Pistol Ammo",
+  "key.zombieapocalypse.reload": "Reload G17"
 }
