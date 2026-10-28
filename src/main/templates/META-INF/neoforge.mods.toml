@@ -91,3 +91,14 @@ The core mod for Zombie Apocalypse SMP, a multiplayer PvPvE survival project.
 # stop your mod loading on the server for example.
 #[features.${mod_id}]
 #openGLVersion="[3.2,)"
+
+# TaCZ is a separate REQUIRED mod, on both dedicated server and clients.
+# The project compiles against the unmodified 1.21.1 NeoForge port and
+# never embeds/repackages its binary or gun assets.
+[[dependencies.${mod_id}]]
+    modId="tacz"
+    type="required"
+    reason="TaCZ provides all gun models, native hand animations, aiming, reloading and audio."
+    versionRange="[0,)"
+    ordering="AFTER"
+    side="BOTH"
