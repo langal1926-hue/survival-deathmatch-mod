@@ -19,8 +19,9 @@ import net.neoforged.neoforge.network.PacketDistributor;
  * ADS FOV and recoil are presentation-only; authoritative bullet direction
  * and spread are computed by the server. Aiming updates have a server timeout.
  */
-@EventBusSubscriber(modid = ZombieApocalypseMod.MOD_ID, value = Dist.CLIENT,
-        bus = EventBusSubscriber.Bus.GAME)
+// Legacy custom-G17 code kept for world/save compatibility only.
+// NOT registered with either NeoForge event bus; the separate native TaCZ
+// mod owns input, R reload binding, first-person rendering and HUD.
 public final class ClientGunInput {
     private static final float ADS_ZOOM = 0.70F;
     private static final int AIM_HEARTBEAT_TICKS = 5;
