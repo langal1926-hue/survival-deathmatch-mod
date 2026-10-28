@@ -3,5 +3,12 @@
   "item.zombieapocalypse.noise_emitter": "Portable Alarm (Prototype)",
   "item.zombieapocalypse.g17_pistol": "G17 Pistol (Prototype)",
   "item.zombieapocalypse.pistol_ammo": "Pistol Ammo",
-  "key.zombieapocalypse.reload": "Reload G17"
+  "key.zombieapocalypse.reload": "Reload G17",
+  "hud.zombieapocalypse.g17": "G17 / 9mm",
+  "hud.zombieapocalypse.fire_mode": "SEMI",
+  "hud.zombieapocalypse.reserve": "RESERVE",
+  "hud.zombieapocalypse.reloading": "RELOAD RECOVERY",
+  "hud.zombieapocalypse.empty": "MAG EMPTY",
+  "hud.zombieapocalypse.ready": "READY",
+  "hud.zombieapocalypse.reload_key": "R: RELOAD"
 }
