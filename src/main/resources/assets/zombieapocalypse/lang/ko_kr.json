@@ -6,9 +6,9 @@
   "key.zombieapocalypse.reload": "G17 재장전",
   "hud.zombieapocalypse.g17": "G17 / 9mm",
   "hud.zombieapocalypse.fire_mode": "반자동",
-  "hud.zombieapocalypse.reserve": "예비 탄약",
-  "hud.zombieapocalypse.reloading": "재장전 후딜",
-  "hud.zombieapocalypse.empty": "탄창 비어 있음",
-  "hud.zombieapocalypse.ready": "발사 준비",
-  "hud.zombieapocalypse.reload_key": "R: 재장전"
+  "hud.zombieapocalypse.reserve": "예비",
+  "hud.zombieapocalypse.reloading": "장전 후딜",
+  "hud.zombieapocalypse.empty": "탄창 없음",
+  "hud.zombieapocalypse.ready": "준비 완료",
+  "hud.zombieapocalypse.reload_key": "R 장전"
 }
