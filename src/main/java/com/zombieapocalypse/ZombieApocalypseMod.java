@@ -1,19 +1,26 @@
 package com.zombieapocalypse;
 
 import com.mojang.logging.LogUtils;
+import com.zombieapocalypse.entity.InfectedZombie;
+import com.zombieapocalypse.entity.ModEntities;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 import org.slf4j.Logger;
 
-/**
- * Entry point for the Zombie Apocalypse SMP mod.
- * Gameplay features will be registered in later development milestones.
- */
+/** Entry point for the Zombie Apocalypse SMP mod. */
 @Mod(ZombieApocalypseMod.MOD_ID)
 public class ZombieApocalypseMod {
     public static final String MOD_ID = "zombieapocalypse";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public ZombieApocalypseMod() {
+    public ZombieApocalypseMod(IEventBus modEventBus) {
+        ModEntities.ENTITY_TYPES.register(modEventBus);
+        modEventBus.addListener(this::registerAttributes);
         LOGGER.info("Zombie Apocalypse SMP mod initialized.");
+    }
+
+    private void registerAttributes(EntityAttributeCreationEvent event) {
+        event.put(ModEntities.INFECTED.get(), InfectedZombie.createInfectedAttributes().build());
     }
 }
