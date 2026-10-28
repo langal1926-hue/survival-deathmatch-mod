@@ -3,10 +3,10 @@ package com.zombieapocalypse.client;
 import com.zombieapocalypse.ZombieApocalypseMod;
 import com.zombieapocalypse.item.G17PistolItem;
 import com.zombieapocalypse.item.ModItems;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
@@ -18,33 +18,31 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 
 /**
- * Minimal, client-only weapon HUD. Displays actual synchronized item magazine
- * data and inventory reserve ammunition. No polling the server is necessary.
+ * Crisp, compact native-resolution G17 HUD.
  *
- * Reload is currently immediate on the server with a 25-tick lockout. The
- * confirmation packet starts a matching visual cooldown indicator here.
+ * The old HUD rendered 184x80 at fractional (2/3) scale, causing Minecraft's
+ * pixel font to blur. Draw all labels at their original 1x size instead while
+ * keeping the same on-screen footprint (~123x54 GUI pixels) and left position.
  */
 @EventBusSubscriber(modid = ZombieApocalypseMod.MOD_ID, value = Dist.CLIENT,
         bus = EventBusSubscriber.Bus.MOD)
 public final class ClientGunHud {
-    private static final int WIDTH = 184;
-    private static final int HEIGHT = 80;
-    // Normal HUD size is 184 x 80; target a panel roughly two-thirds as large.
-    // Anchor beside the vanilla hotbar instead of consuming right-hand view.
-    private static final float HUD_SCALE = 2.0F / 3.0F;
-    private static final int MARGIN_LEFT = 6;
-    private static final int HOTBAR_GAP = 6;
-    private static final int MARGIN_BOTTOM = 6;
+    private static final int WIDTH = 123;
+    private static final int HEIGHT = 54;
+
     private static final int HOTBAR_WIDTH = 182;
     private static final int HOTBAR_HEIGHT = 22;
+    private static final int HOTBAR_GAP = 6;
+    private static final int MARGIN_LEFT = 6;
+    private static final int MARGIN_BOTTOM = 6;
     private static final int RELOAD_LOCK_TICKS = 25;
 
     private static final int BACKGROUND = 0xB0141B27;
     private static final int EDGE = 0xFF364557;
     private static final int WHITE = 0xFFF3F7FD;
-    private static final int MUTED = 0xFF9CABBE;
-    private static final int ACCENT = 0xFF63B8F7;
-    private static final int EMPTY_COLOR = 0xFFEC6868;
+    private static final int MUTED = 0xFFB8C6D5;
+    private static final int ACCENT = 0xFF77C7FF;
+    private static final int EMPTY_COLOR = 0xFFFF7777;
     private static final int BAR_EMPTY = 0xFF3C4A59;
 
     private static int reloadLockTicks;
@@ -58,7 +56,7 @@ public final class ClientGunHud {
                 ClientGunHud::render);
     }
 
-    /** Called after the server has accepted and applied a reload. */
+    /** Called only after the server has accepted and completed a reload. */
     public static void reloadConfirmed() {
         Minecraft.getInstance().execute(() -> reloadLockTicks = RELOAD_LOCK_TICKS);
     }
@@ -88,95 +86,76 @@ public final class ClientGunHud {
         int reserve = countReserveAmmo(mc.player);
         String reserveLabel = mc.player.getAbilities().instabuild ? "∞" : Integer.toString(reserve);
 
-        // Vanilla hotbar spans 182 GUI pixels centered horizontally.
-        // On smaller GUI scales, shrink just enough to fit beside it.
+        // Keep the old display footprint and anchor next to the vanilla hotbar.
+        // If the GUI is too narrow, place it ABOVE the left end of the hotbar.
         int hotbarLeft = (graphics.guiWidth() - HOTBAR_WIDTH) / 2;
-        float spaceOnLeft = hotbarLeft - HOTBAR_GAP - MARGIN_LEFT;
-        float scale = Math.min(HUD_SCALE, spaceOnLeft / WIDTH);
-
-        final int anchorX;
-        final int anchorY;
-        if (scale < 0.50F) {
-            // Truly narrow GUI: avoid overlapping the hotbar by placing the
-            // HUD just above it at the lower-left edge.
-            scale = HUD_SCALE;
-            anchorX = MARGIN_LEFT;
-            anchorY = Math.max(4, graphics.guiHeight() - HOTBAR_HEIGHT
-                    - (int) Math.ceil(HEIGHT * scale) - 12);
-        } else {
-            int displayWidth = (int) Math.ceil(WIDTH * scale);
-            int displayHeight = (int) Math.ceil(HEIGHT * scale);
-            anchorX = Math.max(MARGIN_LEFT, hotbarLeft - HOTBAR_GAP - displayWidth);
-            anchorY = Math.max(4, graphics.guiHeight() - displayHeight - MARGIN_BOTTOM);
-        }
+        boolean fitsLeft = hotbarLeft - HOTBAR_GAP - WIDTH >= MARGIN_LEFT;
+        int x = fitsLeft ? hotbarLeft - HOTBAR_GAP - WIDTH : MARGIN_LEFT;
+        int y = fitsLeft
+                ? graphics.guiHeight() - HEIGHT - MARGIN_BOTTOM
+                : graphics.guiHeight() - HOTBAR_HEIGHT - HEIGHT - 22;
+        y = Math.max(4, y);
 
         Font font = mc.font;
-        graphics.pose().pushPose();
-        graphics.pose().translate(anchorX, anchorY, 0.0F);
-        graphics.pose().scale(scale, scale, 1.0F);
-        int x = 0;
-        int y = 0;
 
-        // Frame and left accent. Keep the panel clear of the crosshair and hotbar.
+        // All geometry uses integer GUI coordinates. Text is NEVER scaled by
+        // fractional pose transforms, preserving the game's native pixel font.
         graphics.fill(x, y, x + WIDTH, y + HEIGHT, BACKGROUND);
         graphics.fill(x, y, x + 2, y + HEIGHT, ACCENT);
         graphics.fill(x + 2, y, x + WIDTH, y + 1, EDGE);
         graphics.fill(x + 2, y + HEIGHT - 1, x + WIDTH, y + HEIGHT, EDGE);
 
+        // Header: weapon name + fixed fire mode.
         graphics.drawString(font, Component.translatable("hud.zombieapocalypse.g17"),
-                x + 11, y + 7, WHITE, false);
+                x + 7, y + 4, WHITE, false);
         drawRight(graphics, font, Component.translatable("hud.zombieapocalypse.fire_mode"),
-                x + WIDTH - 10, y + 7, ACCENT);
+                x + WIDTH - 6, y + 4, ACCENT);
 
-        // Big loaded count, with reserve displayed underneath a divider.
+        // Only the ammo number is enlarged, by an exact integer 2x scale.
+        // Integer scaling keeps blocky pixel glyphs sharp (unlike 0.667x).
         graphics.pose().pushPose();
-        graphics.pose().translate(x + 11, y + 21, 0);
-        graphics.pose().scale(1.75F, 1.75F, 1.0F);
+        graphics.pose().translate(x + 7, y + 16, 0);
+        graphics.pose().scale(2.0F, 2.0F, 1.0F);
         graphics.drawString(font, Integer.toString(loaded), 0, 0,
                 loaded == 0 ? EMPTY_COLOR : WHITE, false);
         graphics.pose().popPose();
 
         String reserveText = Component.translatable("hud.zombieapocalypse.reserve").getString()
-                + "  " + reserveLabel;
-        drawRight(graphics, font, reserveText, x + WIDTH - 10, y + 28, MUTED);
+                + " " + reserveLabel;
+        drawRight(graphics, font, reserveText, x + WIDTH - 6, y + 22, MUTED);
 
-        // Individual rounds make the 17-round capacity readable at a glance.
-        int barX = x + 11;
-        int barY = y + 46;
+        // 17 compact ammo segments fit at native pixel scale (17 * 6 = 102).
         for (int i = 0; i < G17PistolItem.MAGAZINE_SIZE; i++) {
-            int sx = barX + i * 9;
-            graphics.fill(sx, barY, sx + 7, barY + 5,
+            int segmentX = x + 7 + i * 6;
+            graphics.fill(segmentX, y + 36, segmentX + 5, y + 40,
                     i < loaded ? (loaded <= 4 ? EMPTY_COLOR : ACCENT) : BAR_EMPTY);
         }
+        graphics.fill(x + 7, y + 41, x + WIDTH - 6, y + 42, EDGE);
 
-        graphics.fill(x + 11, y + 58, x + WIDTH - 10, y + 59, EDGE);
+        Component status = Component.translatable(
+                reloadLockTicks > 0 ? "hud.zombieapocalypse.reloading"
+                        : loaded == 0 ? "hud.zombieapocalypse.empty"
+                        : "hud.zombieapocalypse.ready");
+        int statusColor = reloadLockTicks > 0 ? ACCENT : loaded == 0 ? EMPTY_COLOR : MUTED;
+        graphics.drawString(font, status, x + 7, y + 44, statusColor, false);
+        drawRight(graphics, font, Component.translatable("hud.zombieapocalypse.reload_key"),
+                x + WIDTH - 6, y + 44, MUTED);
 
         if (reloadLockTicks > 0) {
-            String status = Component.translatable("hud.zombieapocalypse.reloading").getString();
-            graphics.drawString(font, status, x + 11, y + 63, ACCENT, false);
-            // Shows recovery after a reload, not a second ammunition transfer.
-            int progress = (int) ((WIDTH - 22) * (1.0F - reloadLockTicks / (float) RELOAD_LOCK_TICKS));
-            graphics.fill(x + 11, y + HEIGHT - 3, x + 11 + progress, y + HEIGHT - 1, ACCENT);
-        } else if (loaded == 0) {
-            graphics.drawString(font, Component.translatable("hud.zombieapocalypse.empty"),
-                    x + 11, y + 63, EMPTY_COLOR, false);
-        } else {
-            graphics.drawString(font, Component.translatable("hud.zombieapocalypse.ready"),
-                    x + 11, y + 63, MUTED, false);
+            int length = (int) ((WIDTH - 13)
+                    * (1.0F - reloadLockTicks / (float) RELOAD_LOCK_TICKS));
+            graphics.fill(x + 7, y + HEIGHT - 1, x + 7 + length, y + HEIGHT, ACCENT);
         }
-        drawRight(graphics, font, Component.translatable("hud.zombieapocalypse.reload_key"),
-                x + WIDTH - 10, y + 63, MUTED);
-        graphics.pose().popPose();
     }
 
-    private static void drawRight(GuiGraphics graphics, Font font, Component text,
+    private static void drawRight(GuiGraphics graphics, Font font, Component label,
                                   int right, int y, int color) {
-        graphics.drawString(font, text, right - font.width(text), y, color, false);
+        graphics.drawString(font, label, right - font.width(label), y, color, false);
     }
 
-    private static void drawRight(GuiGraphics graphics, Font font, String text,
+    private static void drawRight(GuiGraphics graphics, Font font, String label,
                                   int right, int y, int color) {
-        graphics.drawString(font, text, right - font.width(text), y, color, false);
+        graphics.drawString(font, label, right - font.width(label), y, color, false);
     }
 
     private static int countReserveAmmo(Player player) {
