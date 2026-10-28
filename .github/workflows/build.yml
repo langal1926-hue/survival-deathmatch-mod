@@ -58,14 +58,19 @@ jobs:
               annotation('error', '\n'.join(log.read_text().splitlines()[-70:]))
           if log.exists():
               for line in log.read_text().splitlines():
-                  if any(text in line for text in ('GameTest', 'tests passed', 'tests failed', 'tests done', 'Required test')):
+                  if any(text in line.lower() for text in ('gametest', 'tests passed', 'tests failed', 'tests done', 'tests complete', 'required test', 'survivalrestrictionstest', '> task :test')):
                       annotation('notice', line)
           suites = [ET.parse(path).getroot() for path in Path('build/test-results/test').glob('TEST-*.xml')]
+          if not suites:
+              annotation('error', 'No JUnit result XML was produced; the build must execute its regression tests.')
+              raise SystemExit(1)
           if suites:
               counts = {key: sum(int(suite.get(key, 0)) for suite in suites)
                         for key in ('tests', 'failures', 'errors', 'skipped')}
               result = 'NeoForge JUnit: ' + ', '.join(f'{key}={value}' for key, value in counts.items())
               annotation('notice', result)
+              if counts['tests'] < 2 or counts['skipped'] or counts['failures'] or counts['errors']:
+                  raise SystemExit('Required JUnit checks did not all pass')
               with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
                   summary.write(result + '\n')
               for suite in suites:
