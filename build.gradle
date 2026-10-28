@@ -27,7 +27,17 @@ sourceSets.main.resources {
 }
 
 repositories {
-    // Add here additional repositories if required by some of the dependencies below.
+    // Fetch the full, unchanged TaCZ NeoForge 1.21.1 mod from Modrinth.
+    // The version is pinned in dependencies to avoid silent upgrades.
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = uri('https://api.modrinth.com/maven')
+            }
+        }
+        filter { includeGroup('maven.modrinth') }
+    }
 }
 
 base {
