@@ -152,7 +152,7 @@ def check():
     assert "renderer.renderLeftHand(" in hand_java
 
     def arm_constant(name):
-        match = re.search(r"\\b" + name + r"\\s*=\\s*(-?[0-9.]+)F", hand_java)
+        match = re.search(r"\b" + name + r"\s*=\s*(-?[0-9.]+)F", hand_java)
         assert match, f"Missing {name}"
         return float(match.group(1))
 
