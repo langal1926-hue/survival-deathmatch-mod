@@ -161,6 +161,30 @@ public final class SurvivalRuleEvents {
                 || block == Blocks.SMITHING_TABLE;
     }
 
+
+    @SubscribeEvent
+    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || isAdminBuilder(player)) {
+            return;
+        }
+        // Buckets can be used on fluids or in the air, bypassing RightClickBlock.
+        ItemStack held = event.getItemStack();
+        if (held.getItem() instanceof BucketItem
+                || held.is(Items.POWDER_SNOW_BUCKET)) {
+            event.setCanceled(true);
+            player.displayClientMessage(NO_BUILDING, true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onToolModification(BlockEvent.BlockToolModificationEvent event) {
+        // Shovel paths, axe stripping and hoe tilling change the existing map
+        // without firing a regular break/place event.
+        if (event.getPlayer() instanceof ServerPlayer player && !isAdminBuilder(player)) {
+            event.setCanceled(true);
+        }
+    }
+
     @SubscribeEvent
     public static void onExplosion(ExplosionEvent.Detonate event) {
         if (event.getLevel() instanceof ServerLevel) {
