@@ -1,19 +1,22 @@
 package com.zombieapocalypse.network;
 
 import com.zombieapocalypse.ZombieApocalypseMod;
+import com.zombieapocalypse.client.ClientGunInput;
 import com.zombieapocalypse.item.G17PistolItem;
+import com.zombieapocalypse.item.GunAimState;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 /**
- * A tiny client->server request. The server checks the player's actual held
- * item, current cooldown, inventory and world before taking any action.
+ * Client requests only an action or ADS state. The server validates the actual
+ * gun, cooldown, ammo, and movement when creating each shot.
  */
 public final class GunNetwork {
     private GunNetwork() {}
@@ -21,7 +24,6 @@ public final class GunNetwork {
     public record GunAction(boolean reload) implements CustomPacketPayload {
         public static final Type<GunAction> TYPE = new Type<>(
                 ResourceLocation.fromNamespaceAndPath(ZombieApocalypseMod.MOD_ID, "gun_action"));
-
         public static final StreamCodec<ByteBuf, GunAction> STREAM_CODEC = StreamCodec.composite(
                 ByteBufCodecs.BOOL, GunAction::reload, GunAction::new);
 
@@ -31,12 +33,50 @@ public final class GunNetwork {
         }
     }
 
+    public record AimUpdate(boolean aiming) implements CustomPacketPayload {
+        public static final Type<AimUpdate> TYPE = new Type<>(
+                ResourceLocation.fromNamespaceAndPath(ZombieApocalypseMod.MOD_ID, "aim_update"));
+        public static final StreamCodec<ByteBuf, AimUpdate> STREAM_CODEC = StreamCodec.composite(
+                ByteBufCodecs.BOOL, AimUpdate::aiming, AimUpdate::new);
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    /** Only returned for a real, successfully spawned bullet. */
+    public record ShotFeedback(boolean aimed) implements CustomPacketPayload {
+        public static final Type<ShotFeedback> TYPE = new Type<>(
+                ResourceLocation.fromNamespaceAndPath(ZombieApocalypseMod.MOD_ID, "shot_feedback"));
+        public static final StreamCodec<ByteBuf, ShotFeedback> STREAM_CODEC = StreamCodec.composite(
+                ByteBufCodecs.BOOL, ShotFeedback::aimed, ShotFeedback::new);
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    public static void sendShotFeedback(ServerPlayer player, boolean aimed) {
+        PacketDistributor.sendToPlayer(player, new ShotFeedback(aimed));
+    }
+
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("1");
+        PayloadRegistrar registrar = event.registrar("2");
         registrar.playToServer(GunAction.TYPE, GunAction.STREAM_CODEC, (payload, context) -> {
-            if (context.player() instanceof ServerPlayer serverPlayer) {
-                G17PistolItem.handleInput(serverPlayer, payload.reload());
+            if (context.player() instanceof ServerPlayer player) {
+                G17PistolItem.handleInput(player, payload.reload());
             }
         });
+        registrar.playToServer(AimUpdate.TYPE, AimUpdate.STREAM_CODEC, (payload, context) -> {
+            if (context.player() instanceof ServerPlayer player) {
+                GunAimState.update(player, payload.aiming());
+            }
+        });
+        // This callback is invoked only on the logical client. Keep Minecraft
+        // client code in ClientGunInput instead of accessing it from this class.
+        registrar.playToClient(ShotFeedback.TYPE, ShotFeedback.STREAM_CODEC,
+                (payload, context) -> ClientGunInput.applyRecoil(payload.aimed()));
     }
 }

@@ -2,7 +2,7 @@ package com.zombieapocalypse.item;
 
 import com.zombieapocalypse.ai.NoiseSystem;
 import com.zombieapocalypse.entity.PistolBullet;
-import com.mojang.logging.LogUtils;
+import com.zombieapocalypse.network.GunNetwork;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -77,13 +77,19 @@ public class G17PistolItem extends Item {
         Vec3 origin = player.getEyePosition().add(direction.scale(0.45D));
         PistolBullet bullet = new PistolBullet(level, player);
         bullet.setPos(origin.x, origin.y - 0.1D, origin.z);
-        bullet.shoot(direction.x, direction.y, direction.z, BULLET_SPEED, 0.0F);
+        boolean aiming = GunAimState.isAiming(player);
+        float spreadDegrees = calculateSpread(player, aiming);
+        // Physical projectile with server-authoritative random spread.
+        // NeoForge/Minecraft shoot() accepts inaccuracy in degrees.
+        bullet.shoot(direction.x, direction.y, direction.z, BULLET_SPEED, spreadDegrees);
 
         if (!level.addFreshEntity(bullet)) {
             return; // Do not consume a round when spawning failed.
         }
 
         setLoaded(stack, remaining - 1);
+        // Recoil is a client camera effect, acknowledged only after a real shot.
+        GunNetwork.sendShotFeedback(player, aiming);
         player.getCooldowns().addCooldown(this, FIRE_COOLDOWN_TICKS);
 
         level.playSound(null, player.blockPosition(), SoundEvents.FIREWORK_ROCKET_BLAST,
@@ -92,6 +98,28 @@ public class G17PistolItem extends Item {
                 7, 0.08D, 0.08D, 0.08D, 0.03D);
         NoiseSystem.alertNearbyInfected(level, player.position(), GUNSHOT_HEARING_RADIUS);
         status(player, "G17: " + (remaining - 1) + " / " + MAGAZINE_SIZE + " | R: Reload");
+    }
+
+    /**
+     * Accuracy tiers (degrees). Standing still and ADS are most precise,
+     * movement causes more spread, and jumping/sprinting is least accurate.
+     */
+    private static float calculateSpread(ServerPlayer player, boolean aimed) {
+        if (!player.onGround()) {
+            return 5.5F;
+        }
+        if (player.isSprinting()) {
+            return 5.0F;
+        }
+
+        boolean moving = player.getDeltaMovement().horizontalDistanceSqr() > 0.0064D;
+        if (aimed) {
+            return moving ? 0.95F : (player.isCrouching() ? 0.18F : 0.3F);
+        }
+        if (moving) {
+            return 3.4F;
+        }
+        return player.isCrouching() ? 1.6F : 2.4F;
     }
 
     private void reload(ServerLevel level, ServerPlayer player, ItemStack stack) {
