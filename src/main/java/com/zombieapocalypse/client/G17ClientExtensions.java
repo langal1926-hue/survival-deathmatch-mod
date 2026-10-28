@@ -34,6 +34,8 @@ import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsE
  *
  * IMPORTANT: Return true here so the vanilla generic item-in-hand position
  * and rotations are NOT layered on top of our explicit aiming transform.
+ * The resulting held origin is also used by G17ViewRenderer for forearm grip
+ * targets. Both renders sample the same item animation tracks.
  * Minecraft still handles rendering the actual item model after this hook.
  */
 @EventBusSubscriber(modid = ZombieApocalypseMod.MOD_ID, value = Dist.CLIENT,
@@ -47,6 +49,50 @@ public final class G17ClientExtensions {
     private static final float ADS_Z = -0.70F;
 
     private G17ClientExtensions() {}
+
+    /**
+     * Camera-space origin and rotation of the G17 BEFORE JSON model scale.
+     * Rendering the hands from these same coordinates prevents the situation
+     * seen in the user's video where the gun reaches ADS but both hands stay
+     * at the hip-fire positions.
+     */
+    public record HeldPose(float x, float y, float z, float yaw, float pitch,
+                           float roll, float aim) {}
+
+    public static HeldPose calculatePose(float rawAds,
+                                         G17AnimationState.Pose motion,
+                                         int mainSide, float equipProgress) {
+        float ads = Mth.clamp(rawAds, 0.0F, 1.0F)
+                * (1.0F - motion.reload() * 0.96F);
+
+        // Preserve previously calibrated first-person iron-sight alignment,
+        // barrel direction, ADS FOV and slide/magazine states.
+        float x = Mth.lerp(ads, mainSide * HIP_X, ADS_X)
+                + motion.bobX()
+                + mainSide * motion.reloadAngle() * 0.12F;
+        float y = Mth.lerp(ads, HIP_Y, ADS_Y)
+                - equipProgress * 0.6F
+                - motion.equip() * 0.34F
+                - motion.reload() * 0.40F
+                + motion.shot() * 0.09F
+                - motion.bobY()
+                + motion.breathing();
+        float z = Mth.lerp(ads, HIP_Z, ADS_Z)
+                - motion.reload() * 0.18F
+                + motion.shot() * 0.15F;
+
+        float hip = 1.0F - ads;
+        float yaw = -mainSide * 10.0F * hip
+                + mainSide * motion.reloadAngle() * 31.0F;
+        float pitch = -5.0F * hip
+                - motion.shot() * 11.0F
+                - motion.reload() * 21.0F
+                + motion.equip() * 19.0F;
+        float roll = mainSide * (5.0F * hip
+                + 16.0F * motion.reloadAngle()
+                + 7.0F * motion.equip());
+        return new HeldPose(x, y, z, yaw, pitch, roll, ads);
+    }
 
     @SubscribeEvent
     public static void register(RegisterClientExtensionsEvent event) {
@@ -66,45 +112,17 @@ public final class G17ClientExtensions {
 
                 float rawAds = Mth.clamp(ClientGunInput.getAimBlend(), 0.0F, 1.0F);
                 int side = arm == HumanoidArm.RIGHT ? 1 : -1;
-
-                // Independent original keyframed tracks: draw, shot, magazine
-                // handling, walking bob and subtle idle breathing. Keep all
-                // tracks cosmetic and preserve the calibrated rear sight.
                 G17AnimationState.Pose motion =
                         G17AnimationState.sample(partialTick, rawAds);
-                float ads = rawAds * (1.0F - motion.reload() * 0.96F);
 
-                // Interpolate the *previously gameplay-tested* camera-space
-                // positions. At rest during ADS this preserves the exact
-                // centered iron sight and correct forward-facing muzzle.
-                float x = Mth.lerp(ads, side * HIP_X, ADS_X)
-                        + motion.bobX()
-                        + side * motion.reloadAngle() * 0.12F;
-                float y = Mth.lerp(ads, HIP_Y, ADS_Y)
-                        - equipProcess * 0.6F
-                        - motion.equip() * 0.34F
-                        - motion.reload() * 0.40F
-                        + motion.shot() * 0.09F
-                        - motion.bobY()
-                        + motion.breathing();
-                float z = Mth.lerp(ads, HIP_Z, ADS_Z)
-                        - motion.reload() * 0.18F
-                        + motion.shot() * 0.15F;
-                poseStack.translate(x, y, z);
-
-                float hip = 1.0F - ads;
-                poseStack.mulPose(Axis.YP.rotationDegrees(
-                        -side * 10.0F * hip
-                        + side * motion.reloadAngle() * 31.0F));
-                poseStack.mulPose(Axis.XP.rotationDegrees(
-                        -5.0F * hip
-                        - motion.shot() * 11.0F
-                        - motion.reload() * 21.0F
-                        + motion.equip() * 19.0F));
-                poseStack.mulPose(Axis.ZP.rotationDegrees(
-                        side * (5.0F * hip
-                                + 16.0F * motion.reloadAngle()
-                                + 7.0F * motion.equip())));
+                // This exact same calculated gun position is consumed by the
+                // forearm renderer. The gun and hands cannot drift apart when
+                // ADS, recoil, equip and reload tracks change.
+                HeldPose pose = calculatePose(rawAds, motion, side, equipProcess);
+                poseStack.translate(pose.x(), pose.y(), pose.z());
+                poseStack.mulPose(Axis.YP.rotationDegrees(pose.yaw()));
+                poseStack.mulPose(Axis.XP.rotationDegrees(pose.pitch()));
+                poseStack.mulPose(Axis.ZP.rotationDegrees(pose.roll()));
 
                 // Returning true skips Minecraft's additional arm/item pose
                 // while preserving the JSON FIRST_PERSON item model transform.

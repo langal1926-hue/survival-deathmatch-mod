@@ -134,6 +134,30 @@ def check():
             assert variant["elements"][36] == model["elements"][36]
     print("OK: animated slide and magazine models, geometry bounds and item overrides validated.")
 
+    # Grip regression: the pistol and skin-textured hands must use the
+    # *same* calculated camera-space origin. The previous implementation
+    # animated only the pistol toward ADS and left hands in screen corners.
+    hand_java = (
+        ROOT / "src/main/java/com/zombieapocalypse/client/G17ViewRenderer.java"
+    ).read_text(encoding="utf-8")
+    assert "HeldPose pose = calculatePose(" in pose_java
+    assert "G17ClientExtensions.calculatePose(" in hand_java
+    assert "event.getEquipProgress()" in hand_java
+    assert "held.aim()" in hand_java
+    assert "held.y() + 0.34F" in hand_java, (
+        "Reload support hand should lift relative to the moving pistol grip"
+    )
+    assert "event.setCanceled(true)" not in hand_java, (
+        "Do not cancel the normal item render and lose the G17 model"
+    )
+    # Hip-fire wrist offset versus ADS wrist offset. ADS must place the
+    # primary hand nearer the sight and lower than the rear sight line.
+    hip_main_x = constant("HIP_X") - 0.16
+    ads_main_x = constant("ADS_X") - 0.26
+    assert abs(ads_main_x) < abs(hip_main_x)
+    assert constant("ADS_Y") - 0.12 < constant("ADS_Y")
+    print("OK: both G17 hands share the animated gun origin and reload hand lifts.")
+
     print("OK: FPS barrel points forward and rear sight ADS X/Y alignment calibrated.")
     print("OK: 83 3D G17 cubes, first/third-person displays, and 4 PNG textures validated.")
 

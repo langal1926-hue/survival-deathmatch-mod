@@ -27,9 +27,11 @@ import net.neoforged.neoforge.client.event.RenderPlayerEvent;
  * arms without the standard Minecraft arm-space transforms. The result was
  * enormous disconnected arms and the gun outside the screen.
  *
- * Arms use the vanilla model-space correction, and their original animation
- * tracks follow G17AnimationState (equip, server-confirmed shooting/reload,
- * ADS and movement). They stay low enough not to cover the iron sights.
+ * Arms use the vanilla model-space correction and *the exact same shared
+ * weapon origin* as G17ClientExtensions during equip, ADS, shot and reload.
+ * This prevents the gun from moving up to center while the skinned hands
+ * remain down at the screen corners. The support hand rises toward the
+ * magazine during its server-confirmed reload track.
  * The G17 model itself is still rendered ONCE by the vanilla item pipeline.
  */
 @EventBusSubscriber(modid = ZombieApocalypseMod.MOD_ID, value = Dist.CLIENT,
@@ -54,90 +56,102 @@ public final class G17ViewRenderer {
         PlayerRenderer renderer = (PlayerRenderer) mc.getEntityRenderDispatcher()
                 .getRenderer(player);
         float rawAds = Mth.clamp(ClientGunInput.getAimBlend(), 0.0F, 1.0F);
-        G17AnimationState.Pose motion = G17AnimationState.sample(event.getPartialTick(), rawAds);
-        float ads = rawAds * (1.0F - motion.reload() * 0.96F);
-        int side = player.getMainArm() == HumanoidArm.RIGHT ? 1 : -1;
+        G17AnimationState.Pose motion =
+                G17AnimationState.sample(event.getPartialTick(), rawAds);
+        int mainSide = player.getMainArm() == HumanoidArm.RIGHT ? 1 : -1;
 
-        // Keep vanilla item rendering. The hands get their own synchronized
-        // animation tracks but never duplicate the 3D pistol render.
+        // IMPORTANT: gun and skin-textured arms now use the SAME calculated
+        // camera-space weapon origin. The previously independent offsets
+        // left the hands in the bottom corners during center-screen ADS.
+        G17ClientExtensions.HeldPose held = G17ClientExtensions.calculatePose(
+                rawAds, motion, mainSide, event.getEquipProgress());
+
+        // Keep Minecraft's normal 3D item rendering. Only supply the skinned
+        // arms here; never render the G17 a second time.
         drawArm(event.getPoseStack(), event.getMultiBufferSource(),
-                event.getPackedLight(), renderer, player, side, ads,
-                event.getEquipProgress(), false, motion);
+                event.getPackedLight(), renderer, player, mainSide, mainSide,
+                held, false, motion);
 
-        // ADS: gently bring the offhand under the grip. Reload: the support
-        // hand reaches toward the magazine, even when not currently ADS.
-        // Avoid drawing a second hand if another item occupies the offhand.
-        if ((ads > 0.08F || motion.supportReach() > 0.06F)
+        // In ADS, support the rear of the grip. When reloading, reach up
+        // toward the magazine while the gun is moved/tilted with the same
+        // timeline. Respect actual offhand items.
+        if ((held.aim() > 0.08F || motion.supportReach() > 0.06F)
                 && player.getOffhandItem().isEmpty()) {
             drawArm(event.getPoseStack(), event.getMultiBufferSource(),
-                    event.getPackedLight(), renderer, player, -side, ads,
-                    event.getEquipProgress(), true, motion);
+                    event.getPackedLight(), renderer, player, -mainSide,
+                    mainSide, held, true, motion);
         }
     }
 
     /**
-     * First-person hand-space placement based on the vanilla arm renderer.
-     * Its final transformation is mandatory: PlayerRenderer arm geometry is
-     * in skin-model units, not world/item units.
+     * Calibrated camera-space wrist targets relative to the exact G17 gun
+     * origin. This is a lightweight first-person grip rig with no dependence
+     * on external models or animation files.
+     *
+     * The gun geometry is anchored by G17ClientExtensions. The hands must
+     * follow that SAME x/y/z when ADS, reload, equip or recoil moves the
+     * weapon. Relative wrist offsets make the poses stable across states.
      */
     private static void drawArm(PoseStack poseStack, MultiBufferSource buffers,
                                 int light, PlayerRenderer renderer,
-                                AbstractClientPlayer player, int side,
-                                float ads, float equipProgress,
+                                AbstractClientPlayer player, int armSide,
+                                int mainSide, G17ClientExtensions.HeldPose held,
                                 boolean supporting, G17AnimationState.Pose motion) {
         poseStack.pushPose();
+        float ads = held.aim();
+        float x;
+        float y;
+        float z;
 
-        // The G17 grip is toward the rear (+Z) of the Blockbench model.
-        // Place wrist targets around that grip, NOT at the vanilla far
-        // bottom/right corners. A two-hand ADS stance converges both hands
-        // underneath the rear sight while leaving the crosshair unobstructed.
-        // These are original camera-space poses, not TaCZ animation keys.
-        float horizontal = supporting
-                ? Mth.lerp(ads, 0.55F, 0.14F)
-                : Mth.lerp(ads, 0.54F, 0.15F);
-        float vertical = supporting
-                ? Mth.lerp(ads, -0.66F, -0.55F)
-                : Mth.lerp(ads, -0.57F, -0.49F);
-        float depth = supporting
-                ? Mth.lerp(ads, -0.75F, -0.66F)
-                : Mth.lerp(ads, -0.70F, -0.62F);
-
-        // Same 38-tick reload track drives the actual moving magazine and
-        // both hands: the support hand follows it down then pushes back up.
-        // Recoil pulls the firing wrist and entire weapon back together.
-        if (supporting) {
-            horizontal -= motion.supportReach() * 0.20F;
-            vertical -= motion.supportReach() * 0.22F;
-            depth += motion.supportReach() * 0.03F;
+        if (!supporting) {
+            // Trigger-finger grip: near the pistol's rear (+Z) handle.
+            // While ADS comes in, the wrist moves LEFT and UP with the gun
+            // instead of staying in the bottom-right screen corner.
+            x = held.x() - mainSide * Mth.lerp(ads, 0.16F, 0.26F);
+            // Small lift at hip fire, larger lift in ADS via the gun's own
+            // upward motion. Keep the forearm below the centered sight.
+            y = held.y() + Mth.lerp(ads, 0.00F, -0.12F)
+                    + motion.reload() * 0.12F;
+            z = held.z() + Mth.lerp(ads, 0.08F, 0.12F);
         } else {
-            horizontal -= motion.reload() * 0.05F;
-            vertical -= motion.reload() * 0.29F;
-            vertical += motion.shot() * 0.09F;
-            vertical -= motion.equip() * 0.20F;
-            depth += motion.shot() * 0.10F;
+            // Support palm: converge below the sights during ADS. On reload,
+            // bring the free hand HIGHER to the magazine well (previously it
+            // was lowered by 0.22 and often vanished below the hotbar).
+            float reach = motion.supportReach();
+            float baseX = held.x() - mainSide * Mth.lerp(ads, 0.48F, 0.17F);
+            float baseY = held.y() - Mth.lerp(ads, 0.13F, 0.20F);
+            float baseZ = held.z() + 0.06F;
+            x = Mth.lerp(reach, baseX, held.x() - mainSide * 0.30F);
+            y = Mth.lerp(reach, baseY, held.y() + 0.34F);
+            z = Mth.lerp(reach, baseZ, held.z() + 0.10F);
         }
 
-        poseStack.translate(side * (horizontal + motion.bobX() * 0.65F),
-                vertical - equipProgress * 0.50F - motion.bobY() * 0.65F,
-                depth);
-        float gripYaw = supporting ? Mth.lerp(ads, 35.0F, 15.0F)
-                : Mth.lerp(ads, 39.0F, 15.0F);
-        poseStack.mulPose(Axis.YP.rotationDegrees(side
-                * (gripYaw + motion.reloadAngle() * (supporting ? 14.0F : 12.0F))));
+        // The wrist targets track the same equip/lower/recoil translation as
+        // the pistol. Do not subtract equipProgress a second time.
+        poseStack.translate(x, y, z);
+
+        float gripYaw = supporting ? Mth.lerp(ads, 34.0F, 20.0F)
+                : Mth.lerp(ads, 39.0F, 27.0F);
+        poseStack.mulPose(Axis.YP.rotationDegrees(
+                armSide * gripYaw + held.yaw() * 0.45F
+                        + armSide * motion.reloadAngle() * 9.0F));
         poseStack.mulPose(Axis.XP.rotationDegrees(
-                -motion.shot() * 8.0F + motion.reload() * 9.0F
-                + (supporting ? -motion.supportReach() * 12.0F : 0.0F)));
+                held.pitch() * 0.35F - motion.shot() * 7.0F
+                        - (supporting ? motion.supportReach() * 9.0F : 0.0F)));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(
+                held.roll() * 0.22F
+                        + armSide * (supporting ? 5.0F : -3.0F) * ads));
         poseStack.scale(0.82F, 0.82F, 0.82F);
 
-        // Vanilla's established PlayerRenderer.renderRight/LeftHand matrix.
-        // Omitting this block was responsible for the giant dislocated hands.
-        poseStack.translate(side * -1.0F, 3.6F, 3.5F);
-        poseStack.mulPose(Axis.ZP.rotationDegrees(side * 120.0F));
+        // Vanilla's required PlayerRenderer arm model coordinate correction.
+        // Omitting this correction previously caused giant dislocated arms.
+        poseStack.translate(armSide * -1.0F, 3.6F, 3.5F);
+        poseStack.mulPose(Axis.ZP.rotationDegrees(armSide * 120.0F));
         poseStack.mulPose(Axis.XP.rotationDegrees(200.0F));
-        poseStack.mulPose(Axis.YP.rotationDegrees(side * -135.0F));
-        poseStack.translate(side * 5.6F, 0.0F, 0.0F);
+        poseStack.mulPose(Axis.YP.rotationDegrees(armSide * -135.0F));
+        poseStack.translate(armSide * 5.6F, 0.0F, 0.0F);
 
-        if (side > 0) {
+        if (armSide > 0) {
             renderer.renderRightHand(poseStack, buffers, light, player);
         } else {
             renderer.renderLeftHand(poseStack, buffers, light, player);
