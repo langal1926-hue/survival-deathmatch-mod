@@ -1,3 +1,4 @@
 {
-  "entity.zombieapocalypse.infected": "감염자"
+  "entity.zombieapocalypse.infected": "감염자",
+  "item.zombieapocalypse.noise_emitter": "휴대용 경보기 (시험용)"
 }
