@@ -35,7 +35,7 @@ public final class ClientGunHud {
     private static final int HOTBAR_GAP = 6;
     private static final int MARGIN_LEFT = 6;
     private static final int MARGIN_BOTTOM = 6;
-    private static final int RELOAD_LOCK_TICKS = 25;
+    private static final int RELOAD_LOCK_TICKS = G17PistolItem.RELOAD_COOLDOWN_TICKS;
 
     private static final int BACKGROUND = 0xB0141B27;
     private static final int EDGE = 0xFF364557;
