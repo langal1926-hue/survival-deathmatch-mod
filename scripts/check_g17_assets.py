@@ -134,29 +134,41 @@ def check():
             assert variant["elements"][36] == model["elements"][36]
     print("OK: animated slide and magazine models, geometry bounds and item overrides validated.")
 
-    # Grip regression: the pistol and skin-textured hands must use the
-    # *same* calculated camera-space origin. The previous implementation
-    # animated only the pistol toward ADS and left hands in screen corners.
+    # Grip regression: hand nodes must be CHILDREN of the same animated gun
+    # pose, not independently placed at absolute screen offsets. TaCZ uses a
+    # rig hierarchy, but these are our independently authored offsets/curves.
     hand_java = (
         ROOT / "src/main/java/com/zombieapocalypse/client/G17ViewRenderer.java"
     ).read_text(encoding="utf-8")
     assert "HeldPose pose = calculatePose(" in pose_java
     assert "G17ClientExtensions.calculatePose(" in hand_java
     assert "event.getEquipProgress()" in hand_java
-    assert "held.aim()" in hand_java
-    assert "held.y() + 0.34F" in hand_java, (
-        "Reload support hand should lift relative to the moving pistol grip"
+    assert "poseStack.translate(held.x(), held.y(), held.z());" in hand_java
+    assert "poseStack.mulPose(Axis.YP.rotationDegrees(held.yaw()))" in hand_java
+    assert "poseStack.mulPose(Axis.XP.rotationDegrees(held.pitch()))" in hand_java
+    assert "poseStack.mulPose(Axis.ZP.rotationDegrees(held.roll()))" in hand_java
+    assert "event.setCanceled(true)" not in hand_java
+    assert "renderer.renderRightHand(" in hand_java
+    assert "renderer.renderLeftHand(" in hand_java
+
+    def arm_constant(name):
+        match = re.search(r"\b" + name + r"\s*=\s*(-?[0-9.]+)F", hand_java)
+        assert match, f"Missing {name}"
+        return float(match.group(1))
+
+    # MAIN side=+1 means right arm on screen right of pistol, not left.
+    # Opposite-side hand should stay OUT of the iron-sight centerline.
+    assert 0.09 <= arm_constant("MAIN_ADS_X") <= arm_constant("MAIN_HIP_X")
+    assert 0.12 <= arm_constant("SUPPORT_ADS_X") <= arm_constant("SUPPORT_HIP_X")
+    assert arm_constant("MAIN_ADS_Y") < 0
+    assert arm_constant("SUPPORT_ADS_Y") < 0
+    assert arm_constant("GRIP_ARM_SCALE") <= 0.75, (
+        "Oversized vanilla arms obscure the G17 slide on ADS"
     )
-    assert "event.setCanceled(true)" not in hand_java, (
-        "Do not cancel the normal item render and lose the G17 model"
-    )
-    # Hip-fire wrist offset versus ADS wrist offset. ADS must place the
-    # primary hand nearer the sight and lower than the rear sight line.
-    hip_main_x = constant("HIP_X") - 0.16
-    ads_main_x = constant("ADS_X") - 0.26
-    assert abs(ads_main_x) < abs(hip_main_x)
-    assert constant("ADS_Y") - 0.12 < constant("ADS_Y")
-    print("OK: both G17 hands share the animated gun origin and reload hand lifts.")
+    assert "x = mainSide * Mth.lerp(ads, MAIN_HIP_X, MAIN_ADS_X)" in hand_java
+    assert "x = -mainSide * Mth.lerp(ads, SUPPORT_HIP_X, SUPPORT_ADS_X)" in hand_java
+    assert "y = Mth.lerp(reach, y, 0.44F)" in hand_java
+    print("OK: right/left wrists parented to actual G17 pose and kept under sightline.")
 
     print("OK: FPS barrel points forward and rear sight ADS X/Y alignment calibrated.")
     print("OK: 83 3D G17 cubes, first/third-person displays, and 4 PNG textures validated.")
