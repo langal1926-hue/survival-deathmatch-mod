@@ -79,31 +79,31 @@ public final class G17ClientExtensions {
                 // centered iron sight and correct forward-facing muzzle.
                 float x = Mth.lerp(ads, side * HIP_X, ADS_X)
                         + motion.bobX()
-                        + side * motion.reloadAngle() * 0.07F;
+                        + side * motion.reloadAngle() * 0.12F;
                 float y = Mth.lerp(ads, HIP_Y, ADS_Y)
                         - equipProcess * 0.6F
                         - motion.equip() * 0.34F
-                        - motion.reload() * 0.29F
-                        + motion.shot() * 0.05F
+                        - motion.reload() * 0.40F
+                        + motion.shot() * 0.09F
                         - motion.bobY()
                         + motion.breathing();
                 float z = Mth.lerp(ads, HIP_Z, ADS_Z)
-                        - motion.reload() * 0.10F
-                        + motion.shot() * 0.10F;
+                        - motion.reload() * 0.18F
+                        + motion.shot() * 0.15F;
                 poseStack.translate(x, y, z);
 
                 float hip = 1.0F - ads;
                 poseStack.mulPose(Axis.YP.rotationDegrees(
                         -side * 10.0F * hip
-                        + side * motion.reloadAngle() * 20.0F));
+                        + side * motion.reloadAngle() * 31.0F));
                 poseStack.mulPose(Axis.XP.rotationDegrees(
                         -5.0F * hip
-                        - motion.shot() * 7.0F
-                        - motion.reload() * 13.0F
+                        - motion.shot() * 11.0F
+                        - motion.reload() * 21.0F
                         + motion.equip() * 19.0F));
                 poseStack.mulPose(Axis.ZP.rotationDegrees(
                         side * (5.0F * hip
-                                + 9.0F * motion.reloadAngle()
+                                + 16.0F * motion.reloadAngle()
                                 + 7.0F * motion.equip())));
 
                 // Returning true skips Minecraft's additional arm/item pose

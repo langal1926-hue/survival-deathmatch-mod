@@ -1,6 +1,7 @@
 package com.zombieapocalypse.client;
 
 import com.zombieapocalypse.item.ModItems;
+import com.zombieapocalypse.item.G17PistolItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 
@@ -13,14 +14,14 @@ import net.minecraft.util.Mth;
  * textures, sounds or code. It simply uses a standard state-machine approach
  * to create independent motion for our own Blockbench pistol and player arms.
  *
- * Reload is currently an instant server ammo transfer followed by a 25-tick
- * firing lockout. The visual timeline is deliberately the same 25 ticks and
+ * Reload is currently an instant server ammo transfer followed by a 38-tick
+ * firing lockout. The visual timeline is deliberately the same 38 ticks and
  * starts only when the server confirms a successful reload.
  */
 public final class G17AnimationState {
-    public static final int RELOAD_TICKS = 25;
-    private static final int SHOOT_TICKS = 7;
-    private static final int EQUIP_TICKS = 10;
+    public static final int RELOAD_TICKS = G17PistolItem.RELOAD_COOLDOWN_TICKS;
+    private static final int SHOOT_TICKS = 9;
+    private static final int EQUIP_TICKS = 12;
 
     // Original authored animation curves. Stored once to avoid allocating
     // temporary arrays for every frame rendered.
@@ -165,6 +166,38 @@ public final class G17AnimationState {
 
         return new Pose(shot, reload, reloadAngle, supportReach, equip,
                 bobX, bobY, breathing);
+    }
+
+    /**
+     * Lightweight item-model frame for separately moving slide and magazine.
+     * This is evaluated only for the local first-person pistol. Every target
+     * model is made from our own contributed Blockbench G17 geometry.
+     *
+     * 0 = normal, .2 = slide partly back, .4 = slide fully back,
+     * .6 = magazine partially extracted, .8 = magazine extracted.
+     */
+    public static float modelFrame(float partialTick) {
+        float p = Mth.clamp(partialTick, 0.0F, 1.0F);
+        if (reloadTicks >= 0) {
+            float t = Mth.clamp((reloadTicks + p) / RELOAD_TICKS, 0.0F, 1.0F);
+            if (t >= 0.32F && t < 0.68F) {
+                return 0.8F;
+            }
+            if (t >= 0.20F && t < 0.83F) {
+                return 0.6F;
+            }
+            return 0.0F;
+        }
+        if (shootTicks >= 0) {
+            float t = Mth.clamp((shootTicks + p) / SHOOT_TICKS, 0.0F, 1.0F);
+            if (t < 0.24F) {
+                return 0.4F;
+            }
+            if (t < 0.56F) {
+                return 0.2F;
+            }
+        }
+        return 0.0F;
     }
 
     /** Piecewise smooth keyframe curve: (time,value) pairs, no external data. */

@@ -35,7 +35,7 @@ public class G17PistolItem extends Item {
     private static final double GUNSHOT_HEARING_RADIUS = 64.0D;
     private static final float BULLET_SPEED = 4.0F; // blocks per game tick (80 blocks/sec)
     private static final int FIRE_COOLDOWN_TICKS = 6;
-    private static final int RELOAD_COOLDOWN_TICKS = 25;
+    public static final int RELOAD_COOLDOWN_TICKS = 38; // 1.9s: sync visible gun/arm reload animation
 
     public G17PistolItem(Properties properties) {
         super(properties);

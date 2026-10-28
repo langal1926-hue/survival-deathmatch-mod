@@ -93,6 +93,47 @@ def check():
         "The G17 ADS pose must skip the vanilla duplicate item transforms"
     )
 
+
+    # The original user-supplied G17 now has our own four visual animation
+    # frames. All are baked vanilla JSON item models: no TaCZ dependency.
+    expected_frames = {
+        0.2: ("slide_half", 83),
+        0.4: ("slide_back", 83),
+        0.6: ("magazine_half", 84),
+        0.8: ("magazine_out", 84),
+    }
+    overrides = model.get("overrides", [])
+    assert len(overrides) == len(expected_frames)
+    for value, (suffix, expected_count) in expected_frames.items():
+        resource_name = "zombieapocalypse:item/g17_pistol_" + suffix
+        assert any(
+            o.get("model") == resource_name
+            and o.get("predicate", {}).get("zombieapocalypse:g17_frame") == value
+            for o in overrides
+        ), f"Missing G17 model override for frame {value}"
+        frame_file = ITEM.with_name("g17_pistol_" + suffix + ".json")
+        variant = json.loads(frame_file.read_text(encoding="utf-8"))
+        assert len(variant["elements"]) == expected_count, frame_file
+        assert variant["textures"] == model["textures"], frame_file
+        assert variant["display"] == model["display"], frame_file
+        for j, cuboid in enumerate(variant["elements"]):
+            assert all(-16 <= v <= 32 for v in cuboid["from"] + cuboid["to"]), (
+                f"{suffix} element {j}: outside Minecraft item model bounds"
+            )
+            assert all(a < b for a, b in zip(cuboid["from"], cuboid["to"]))
+        if suffix.startswith("slide"):
+            # The slide and iron sights travel in +Z (rearward), while the
+            # barrel and frame cuboids must remain in place.
+            assert variant["elements"][36]["from"][2] > model["elements"][36]["from"][2]
+            assert variant["elements"][0] == model["elements"][0]
+            assert variant["elements"][43] == model["elements"][43]
+        else:
+            # Our newly authored detachable magazine geometry moves down;
+            # the original pistol frame must remain unchanged.
+            assert variant["elements"][0]["from"][1] < model["elements"][0]["from"][1]
+            assert variant["elements"][36] == model["elements"][36]
+    print("OK: animated slide and magazine models, geometry bounds and item overrides validated.")
+
     print("OK: FPS barrel points forward and rear sight ADS X/Y alignment calibrated.")
     print("OK: 83 3D G17 cubes, first/third-person displays, and 4 PNG textures validated.")
 

@@ -54,7 +54,7 @@ public final class G17ViewRenderer {
         PlayerRenderer renderer = (PlayerRenderer) mc.getEntityRenderDispatcher()
                 .getRenderer(player);
         float rawAds = Mth.clamp(ClientGunInput.getAimBlend(), 0.0F, 1.0F);
-        G17AnimationState.Pose motion = G17AnimationState.sample(0.5F, rawAds);
+        G17AnimationState.Pose motion = G17AnimationState.sample(event.getPartialTick(), rawAds);
         float ads = rawAds * (1.0F - motion.reload() * 0.96F);
         int side = player.getMainArm() == HumanoidArm.RIGHT ? 1 : -1;
 
@@ -87,43 +87,47 @@ public final class G17ViewRenderer {
                                 boolean supporting, G17AnimationState.Pose motion) {
         poseStack.pushPose();
 
-        // Use compact vanilla-like coordinates so only the FOREARMS enter
-        // the bottom portion of the screen, not whole oversized player arms.
-        // Keep both hands BELOW the iron sights, not in front of the
-        // crosshair. Hip fire is a single visible right/left forearm;
-        // when aiming, the support forearm enters under the weapon.
+        // The G17 grip is toward the rear (+Z) of the Blockbench model.
+        // Place wrist targets around that grip, NOT at the vanilla far
+        // bottom/right corners. A two-hand ADS stance converges both hands
+        // underneath the rear sight while leaving the crosshair unobstructed.
+        // These are original camera-space poses, not TaCZ animation keys.
         float horizontal = supporting
-                ? Mth.lerp(ads, 0.61F, 0.25F)
-                : Mth.lerp(ads, 0.60F, 0.24F);
+                ? Mth.lerp(ads, 0.55F, 0.14F)
+                : Mth.lerp(ads, 0.54F, 0.15F);
         float vertical = supporting
-                ? Mth.lerp(ads, -0.78F, -0.77F)
-                : Mth.lerp(ads, -0.66F, -0.72F);
-        float depth = supporting ? -0.92F : -0.84F;
+                ? Mth.lerp(ads, -0.66F, -0.55F)
+                : Mth.lerp(ads, -0.57F, -0.49F);
+        float depth = supporting
+                ? Mth.lerp(ads, -0.75F, -0.66F)
+                : Mth.lerp(ads, -0.70F, -0.62F);
 
-        // Same 25-tick reload track drives both the 3D gun and the forearms:
-        // main hand lowers with the grip, support hand reaches for magazine.
+        // Same 38-tick reload track drives the actual moving magazine and
+        // both hands: the support hand follows it down then pushes back up.
+        // Recoil pulls the firing wrist and entire weapon back together.
         if (supporting) {
-            horizontal -= motion.supportReach() * 0.12F;
-            vertical += motion.supportReach() * 0.11F;
-            depth -= motion.supportReach() * 0.07F;
+            horizontal -= motion.supportReach() * 0.20F;
+            vertical -= motion.supportReach() * 0.22F;
+            depth += motion.supportReach() * 0.03F;
         } else {
-            horizontal -= motion.reload() * 0.07F;
-            vertical -= motion.reload() * 0.25F;
-            vertical += motion.shot() * 0.055F;
-            vertical -= motion.equip() * 0.18F;
-            depth += motion.shot() * 0.065F;
+            horizontal -= motion.reload() * 0.05F;
+            vertical -= motion.reload() * 0.29F;
+            vertical += motion.shot() * 0.09F;
+            vertical -= motion.equip() * 0.20F;
+            depth += motion.shot() * 0.10F;
         }
 
-        poseStack.translate(side * (horizontal + motion.bobX() * 0.5F),
-                vertical - equipProgress * 0.50F - motion.bobY() * 0.5F,
+        poseStack.translate(side * (horizontal + motion.bobX() * 0.65F),
+                vertical - equipProgress * 0.50F - motion.bobY() * 0.65F,
                 depth);
-        float gripYaw = supporting ? Mth.lerp(ads, 36.0F, 18.0F)
-                : Mth.lerp(ads, 40.0F, 18.0F);
+        float gripYaw = supporting ? Mth.lerp(ads, 35.0F, 15.0F)
+                : Mth.lerp(ads, 39.0F, 15.0F);
         poseStack.mulPose(Axis.YP.rotationDegrees(side
-                * (gripYaw + motion.reloadAngle() * (supporting ? 7.0F : 13.0F))));
+                * (gripYaw + motion.reloadAngle() * (supporting ? 14.0F : 12.0F))));
         poseStack.mulPose(Axis.XP.rotationDegrees(
-                -motion.shot() * 5.0F + motion.reload() * 6.0F));
-        poseStack.scale(0.88F, 0.88F, 0.88F);
+                -motion.shot() * 8.0F + motion.reload() * 9.0F
+                + (supporting ? -motion.supportReach() * 12.0F : 0.0F)));
+        poseStack.scale(0.82F, 0.82F, 0.82F);
 
         // Vanilla's established PlayerRenderer.renderRight/LeftHand matrix.
         // Omitting this block was responsible for the giant dislocated hands.
