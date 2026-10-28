@@ -6183,26 +6183,26 @@
     },
     "firstperson_righthand": {
       "translation": [
-        1.5,
-        2,
+        0.5,
+        1.2,
         0
       ],
       "scale": [
-        0.3,
-        0.3,
-        0.3
+        0.235,
+        0.235,
+        0.235
       ]
     },
     "firstperson_lefthand": {
       "translation": [
-        -2.75,
-        2.5,
+        -0.5,
+        1.2,
         0
       ],
       "scale": [
-        0.3,
-        0.3,
-        0.3
+        0.235,
+        0.235,
+        0.235
       ]
     },
     "ground": {
