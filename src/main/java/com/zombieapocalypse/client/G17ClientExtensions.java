@@ -15,7 +15,8 @@ import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 
 /**
- * Camera-space transforms for the original 3D G17 model.
+ * Camera-space transforms and independent original pose animations for the
+ * contributed 3D G17 model.
  *
  * The original Blockbench G17 barrel points along model -Z; the rear sight
  * sits at +Z and the front sight sits near -Z. Since Minecraft's first-person
@@ -27,6 +28,9 @@ import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsE
  * the rear sight is (-0.109, +0.203, +0.219) relative to model center.
  * ADS translation (+0.109, -0.203, -0.70) centers the rear sight while
  * the muzzle at z≈-9 remains deeper forward along the camera's -Z axis.
+ *
+ * Original shoot / reload / draw keyframe tracks come from
+ * G17AnimationState, not any external mod's animation files.
  *
  * IMPORTANT: Return true here so the vanilla generic item-in-hand position
  * and rotations are NOT layered on top of our explicit aiming transform.
@@ -60,21 +64,47 @@ public final class G17ClientExtensions {
                     return false;
                 }
 
-                float ads = Mth.clamp(ClientGunInput.getAimBlend(), 0.0F, 1.0F);
+                float rawAds = Mth.clamp(ClientGunInput.getAimBlend(), 0.0F, 1.0F);
                 int side = arm == HumanoidArm.RIGHT ? 1 : -1;
 
-                // Interpolate actual camera-space positions. ADS_X is not
-                // handedness-dependent: both sights must reach screen center.
-                float x = Mth.lerp(ads, side * HIP_X, ADS_X);
-                float y = Mth.lerp(ads, HIP_Y, ADS_Y) - equipProcess * 0.6F;
-                float z = Mth.lerp(ads, HIP_Z, ADS_Z);
+                // Independent original keyframed tracks: draw, shot, magazine
+                // handling, walking bob and subtle idle breathing. Keep all
+                // tracks cosmetic and preserve the calibrated rear sight.
+                G17AnimationState.Pose motion =
+                        G17AnimationState.sample(partialTick, rawAds);
+                float ads = rawAds * (1.0F - motion.reload() * 0.96F);
+
+                // Interpolate the *previously gameplay-tested* camera-space
+                // positions. At rest during ADS this preserves the exact
+                // centered iron sight and correct forward-facing muzzle.
+                float x = Mth.lerp(ads, side * HIP_X, ADS_X)
+                        + motion.bobX()
+                        + side * motion.reloadAngle() * 0.07F;
+                float y = Mth.lerp(ads, HIP_Y, ADS_Y)
+                        - equipProcess * 0.6F
+                        - motion.equip() * 0.34F
+                        - motion.reload() * 0.29F
+                        + motion.shot() * 0.05F
+                        - motion.bobY()
+                        + motion.breathing();
+                float z = Mth.lerp(ads, HIP_Z, ADS_Z)
+                        - motion.reload() * 0.10F
+                        + motion.shot() * 0.10F;
                 poseStack.translate(x, y, z);
 
-                // A little hip-fire cant; completely level/forward in ADS.
                 float hip = 1.0F - ads;
-                poseStack.mulPose(Axis.YP.rotationDegrees(-side * 10.0F * hip));
-                poseStack.mulPose(Axis.XP.rotationDegrees(-5.0F * hip));
-                poseStack.mulPose(Axis.ZP.rotationDegrees(side * 5.0F * hip));
+                poseStack.mulPose(Axis.YP.rotationDegrees(
+                        -side * 10.0F * hip
+                        + side * motion.reloadAngle() * 20.0F));
+                poseStack.mulPose(Axis.XP.rotationDegrees(
+                        -5.0F * hip
+                        - motion.shot() * 7.0F
+                        - motion.reload() * 13.0F
+                        + motion.equip() * 19.0F));
+                poseStack.mulPose(Axis.ZP.rotationDegrees(
+                        side * (5.0F * hip
+                                + 9.0F * motion.reloadAngle()
+                                + 7.0F * motion.equip())));
 
                 // Returning true skips Minecraft's additional arm/item pose
                 // while preserving the JSON FIRST_PERSON item model transform.
