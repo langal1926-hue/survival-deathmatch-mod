@@ -63,6 +63,7 @@ public final class ClientGunInput {
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
+        ClientGunHud.clientTick();
         Minecraft mc = Minecraft.getInstance();
         boolean holding = holdingG17(mc);
         boolean aiming = holding && !mc.player.isSprinting() && mc.options.keyUse.isDown();
