@@ -10,8 +10,9 @@ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import org.lwjgl.glfw.GLFW;
 
 /** R is configurable in Minecraft's Controls menu. */
-@EventBusSubscriber(modid = ZombieApocalypseMod.MOD_ID, value = Dist.CLIENT,
-        bus = EventBusSubscriber.Bus.MOD)
+// Legacy custom-G17 code kept for world/save compatibility only.
+// NOT registered with either NeoForge event bus; the separate native TaCZ
+// mod owns input, R reload binding, first-person rendering and HUD.
 public final class ClientGunKeys {
     public static final KeyMapping RELOAD = new KeyMapping(
             "key.zombieapocalypse.reload",
