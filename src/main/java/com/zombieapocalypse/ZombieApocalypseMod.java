@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import com.zombieapocalypse.entity.InfectedZombie;
 import com.zombieapocalypse.entity.ModEntities;
 import com.zombieapocalypse.item.ModItems;
+import com.zombieapocalypse.item.G17LicensedSounds;
 import com.zombieapocalypse.network.GunNetwork;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -19,6 +20,7 @@ public class ZombieApocalypseMod {
     public ZombieApocalypseMod(IEventBus modEventBus) {
         ModEntities.ENTITY_TYPES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
+        G17LicensedSounds.SOUNDS.register(modEventBus);
         modEventBus.addListener(this::registerAttributes);
         modEventBus.addListener(GunNetwork::register);
         LOGGER.info("Zombie Apocalypse SMP mod initialized.");
