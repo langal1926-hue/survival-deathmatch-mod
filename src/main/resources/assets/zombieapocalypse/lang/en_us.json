@@ -10,5 +10,10 @@
   "hud.zombieapocalypse.reloading": "RELOAD LOCK",
   "hud.zombieapocalypse.empty": "EMPTY",
   "hud.zombieapocalypse.ready": "READY",
-  "hud.zombieapocalypse.reload_key": "R RELOAD"
+  "hud.zombieapocalypse.reload_key": "R RELOAD",
+  "item.zombieapocalypse.construction_planks": "Construction Spruce Planks",
+  "item.zombieapocalypse.construction_cobblestone": "Construction Cobblestone",
+  "item.zombieapocalypse.construction_stone_bricks": "Construction Stone Bricks",
+  "item.zombieapocalypse.construction_glass": "Construction Glass",
+  "item.zombieapocalypse.construction_chest": "Construction Chest"
 }
