@@ -160,6 +160,25 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
 // Include the output of "generateModMetadata" as an input directory for the build
 // this works with both building through Gradle and the IDE.
 sourceSets.main.resources.srcDir generateModMetadata
+
+    
+// The user has a separate commercial license for TaCZ G17 assets.
+// Keep the original JAR and converted model, animation and sounds OUT of Git.
+// This copies the licensed model frames / sounds over the default G17 at build
+// time. CI without the local resources keeps the existing G17 fully working.
+tasks.named('processResources', ProcessResources).configure {
+    doLast {
+        def licensed = layout.projectDirectory.dir('local/licensed_tacz_g17').asFile
+        if (licensed.isDirectory()) {
+            logger.lifecycle('Overlaying locally licensed TaCZ G17 resources')
+            copy {
+                from licensed
+                into destinationDir
+            }
+        }
+    }
+}
+
 // To avoid having to run "generateModMetadata" manually, make it run on every project reload
 neoForge.ideSyncTask generateModMetadata
 
