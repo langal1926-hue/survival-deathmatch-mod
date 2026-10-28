@@ -121,8 +121,10 @@ public class G17PistolItem extends Item {
         GunNetwork.sendShotFeedback(player, aiming);
         player.getCooldowns().addCooldown(this, FIRE_COOLDOWN_TICKS);
 
-        level.playSound(null, player.blockPosition(), SoundEvents.FIREWORK_ROCKET_BLAST,
-                SoundSource.PLAYERS, 1.5F, 1.1F);
+        level.playSound(null, player.blockPosition(),
+                G17LicensedSounds.installed() ? G17LicensedSounds.SHOOT.get()
+                        : SoundEvents.FIREWORK_ROCKET_BLAST,
+                SoundSource.PLAYERS, 1.5F, 1.0F);
         // A short flash / smoke puff follows the real muzzle origin.
         level.sendParticles(ParticleTypes.FLAME, origin.x, origin.y, origin.z,
                 3, 0.035D, 0.035D, 0.035D, 0.015D);
@@ -187,8 +189,10 @@ public class G17PistolItem extends Item {
         setLoaded(stack, loaded + taken);
         player.getCooldowns().addCooldown(this, RELOAD_COOLDOWN_TICKS);
         GunNetwork.sendReloadFeedback(player);
-        level.playSound(null, player.blockPosition(), SoundEvents.IRON_TRAPDOOR_CLOSE,
-                SoundSource.PLAYERS, 0.8F, 1.5F);
+        level.playSound(null, player.blockPosition(),
+                G17LicensedSounds.installed() ? G17LicensedSounds.RELOAD.get()
+                        : SoundEvents.IRON_TRAPDOOR_CLOSE,
+                SoundSource.PLAYERS, 0.8F, 1.0F);
         status(player, "G17: Reloaded " + (loaded + taken) + " / " + MAGAZINE_SIZE);
     }
 

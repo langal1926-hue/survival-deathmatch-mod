@@ -169,6 +169,31 @@ public final class G17AnimationState {
     }
 
     /**
+     * Animation clock for the locally licensed TaCZ G17 rig. This never
+     * changes server rules: it merely exposes the active cosmetic track.
+     * Action durations are normalized to the original keyframe clip lengths
+     * by G17LicensedAnimation.
+     */
+    public static Timeline timeline(float partialTick) {
+        float p = Mth.clamp(partialTick, 0.0F, 1.0F);
+        if (reloadTicks >= 0) {
+            return new Timeline("reload_tactical",
+                    Mth.clamp((reloadTicks+p)/RELOAD_TICKS,0.0F,1.0F));
+        }
+        if (shootTicks >= 0) {
+            return new Timeline("shoot",
+                    Mth.clamp((shootTicks+p)/SHOOT_TICKS,0.0F,1.0F));
+        }
+        if (equipTicks >= 0) {
+            return new Timeline("draw",
+                    Mth.clamp((equipTicks+p)/EQUIP_TICKS,0.0F,1.0F));
+        }
+        return new Timeline("static_idle",0.0F);
+    }
+
+    public record Timeline(String name, float progress) {}
+
+    /**
      * Lightweight item-model frame for separately moving slide and magazine.
      * This is evaluated only for the local first-person pistol. Every target
      * model is made from our own contributed Blockbench G17 geometry.
