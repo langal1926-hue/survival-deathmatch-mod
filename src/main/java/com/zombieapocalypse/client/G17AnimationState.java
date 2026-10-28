@@ -1,6 +1,7 @@
 package com.zombieapocalypse.client;
 
 import com.zombieapocalypse.item.ModItems;
+import com.zombieapocalypse.item.G17PistolItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 
@@ -13,14 +14,14 @@ import net.minecraft.util.Mth;
  * textures, sounds or code. It simply uses a standard state-machine approach
  * to create independent motion for our own Blockbench pistol and player arms.
  *
- * Reload is currently an instant server ammo transfer followed by a 25-tick
- * firing lockout. The visual timeline is deliberately the same 25 ticks and
+ * Reload is currently an instant server ammo transfer followed by a 38-tick
+ * firing lockout. The visual timeline is deliberately the same 38 ticks and
  * starts only when the server confirms a successful reload.
  */
 public final class G17AnimationState {
-    public static final int RELOAD_TICKS = 25;
-    private static final int SHOOT_TICKS = 7;
-    private static final int EQUIP_TICKS = 10;
+    public static final int RELOAD_TICKS = G17PistolItem.RELOAD_COOLDOWN_TICKS;
+    private static final int SHOOT_TICKS = 9;
+    private static final int EQUIP_TICKS = 12;
 
     // Original authored animation curves. Stored once to avoid allocating
     // temporary arrays for every frame rendered.
