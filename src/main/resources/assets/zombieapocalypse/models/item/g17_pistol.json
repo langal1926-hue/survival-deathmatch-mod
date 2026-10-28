@@ -1,5 +1,5 @@
 {
-  "__comment": "83-cuboid 3D G17 converted from user-provided Blockbench project with permission. Materials use newly authored mod-local textures. Geometry represents static first/third person views; animation is a separate step.",
+  "__comment": "User-provided G17 geometry, original mod-local textures. FPS views rotate the barrel (+Z in Blockbench) to camera forward (-Z) and center sights via G17ClientExtensions. Third-person and GUI untouched.",
   "parent": "minecraft:block/block",
   "ambientocclusion": false,
   "gui_light": "front",
@@ -6184,35 +6184,35 @@
     "firstperson_righthand": {
       "rotation": [
         0,
-        0,
+        180,
         0
       ],
       "translation": [
         0,
         0,
-        -0.75
+        0
       ],
       "scale": [
-        0.22,
-        0.22,
-        0.22
+        0.25,
+        0.25,
+        0.25
       ]
     },
     "firstperson_lefthand": {
       "rotation": [
         0,
-        0,
+        180,
         0
       ],
       "translation": [
         0,
         0,
-        -0.75
+        0
       ],
       "scale": [
-        0.22,
-        0.22,
-        0.22
+        0.25,
+        0.25,
+        0.25
       ]
     },
     "ground": {
