@@ -23,6 +23,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
         bus = EventBusSubscriber.Bus.GAME)
 public final class TaCZGunEvents {
     private static final double GUNSHOT_HEARING_RADIUS = 64.0D;
+    private static final double SUPPRESSED_HEARING_RADIUS = 28.0D;
 
     private TaCZGunEvents() {}
 
@@ -32,8 +33,12 @@ public final class TaCZGunEvents {
             return;
         }
         if (event.getShooter().level() instanceof ServerLevel level) {
+            // TaCZ handles its own muffled audio. Our infected hearing AI
+            // must separately respect the approved muzzle suppressor.
+            double radius = TaCZWeaponAllowlist.hasApprovedSuppressor(event.getGunItemStack())
+                    ? SUPPRESSED_HEARING_RADIUS : GUNSHOT_HEARING_RADIUS;
             NoiseSystem.alertNearbyInfected(
-                    level, event.getShooter().position(), GUNSHOT_HEARING_RADIUS);
+                    level, event.getShooter().position(), radius);
         }
     }
 }
