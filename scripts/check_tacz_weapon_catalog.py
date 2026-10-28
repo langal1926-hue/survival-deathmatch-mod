@@ -66,9 +66,81 @@ def download_current_pinned_jar(out: Path) -> Path:
     return out
 
 
+def parse_tacz_jsonc(raw: str):
+    """TaCZ default-pack metadata accepts // comments and trailing commas.
+
+    Strip those without altering JSON string literals (including URLs).
+    This validator never executes JavaScript or vendor assets.
+    """
+    result = []
+    i = 0
+    in_string = False
+    escaped = False
+    while i < len(raw):
+        ch = raw[i]
+        next_char = raw[i + 1] if i + 1 < len(raw) else ""
+        if in_string:
+            result.append(ch)
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+            result.append(ch)
+            i += 1
+            continue
+        if ch == "/" and next_char == "/":
+            i = raw.find("\n", i)
+            if i == -1:
+                break
+            result.append("\n")
+            i += 1
+            continue
+        if ch == "/" and next_char == "*":
+            end = raw.find("*/", i + 2)
+            if end == -1:
+                raise ValueError("Unterminated block comment in TaCZ metadata")
+            result.append("\n" * raw[i:end + 2].count("\n"))
+            i = end + 2
+            continue
+        # The stock TaCZ JSONC uses trailing commas; detect only those
+        # outside quoted strings, with comments already stripped above.
+        result.append(ch)
+        i += 1
+    cleaned = "".join(result)
+    # Remove commas outside JSON strings immediately preceding closing } or ].
+    output = []
+    in_string = escaped = False
+    i = 0
+    while i < len(cleaned):
+        ch = cleaned[i]
+        if in_string:
+            output.append(ch)
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+        elif ch == '"':
+            in_string = True
+            output.append(ch)
+        elif ch == "," and re.match(r"\s*[}\]]", cleaned[i + 1:]):
+            pass
+        else:
+            output.append(ch)
+        i += 1
+    return json.loads("".join(output))
+
+
 def parse_json_from_jar(jar: zipfile.ZipFile, relative_path: str):
     path = PACK_PREFIX + relative_path
-    return json.loads(jar.read(path).decode("utf-8-sig"))
+    return parse_tacz_jsonc(jar.read(path).decode("utf-8-sig"))
 
 
 def expand_tags(jar: zipfile.ZipFile, group: str) -> set[str]:
