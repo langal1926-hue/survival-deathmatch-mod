@@ -76,7 +76,7 @@ def select_tacz_file(metadata: dict) -> dict:
         raise ValueError("Pinned TaCZ version has no installable JAR")
     file = next((f for f in files if f.get("primary")), files[0])
     filename = file["filename"]
-    if not re.fullmatch(r"[A-Za-z0-9_.+\\-]+\\.jar", filename):
+    if not re.fullmatch(r"[A-Za-z0-9_.+-]+\.jar", filename):
         raise ValueError("Unsafe TaCZ file name")
     url = file.get("url", "")
     parsed = urllib.parse.urlsplit(url)
