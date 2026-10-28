@@ -51,6 +51,43 @@ def check():
                 f"Element {i}/{side} invalid UV: {face['uv']}"
             )
 
+    # Regression check for the original gun's axis: Blockbench +Z is the
+    # muzzle direction, but first person looks down camera -Z.
+    # 180 degrees about model-center Y reverses the barrel direction.
+    right = model["display"]["firstperson_righthand"]
+    left = model["display"]["firstperson_lefthand"]
+    for display in (right, left):
+        assert display["rotation"] == [0, 180, 0], "FPS barrel must point away from camera"
+        assert display["scale"] == [0.25, 0.25, 0.25], "Update ADS calibration if FPS scale changes"
+
+    # Coarse camera-space check using rear sight geometry at x=1, y=21, z=-9
+    # and front sight at x=1, y=21, z=+22 (original Blockbench units).
+    # This doesn't render Minecraft; it just guards against disappearing sights.
+    import re
+    pose_java = (
+        ROOT / "src/main/java/com/zombieapocalypse/client/G17ClientExtensions.java"
+    ).read_text(encoding="utf-8")
+    def constant(name):
+        match = re.search(r"\b" + name + r"\s*=\s*(-?[0-9.]+)F", pose_java)
+        assert match is not None, f"Missing ADS calibration constant: {name}"
+        return float(match.group(1))
+
+    s = right["scale"][0]
+    rear_x = constant("ADS_X") + (16 - 1 - 8) * s / 16
+    rear_y = constant("ADS_Y") + (21 - 8) * s / 16
+    rear_z = constant("ADS_Z") + (16 - (-9) - 8) * s / 16
+    front_z = constant("ADS_Z") + (16 - 22 - 8) * s / 16
+    assert abs(rear_x) < 0.03 and abs(rear_y) < 0.03, (
+        f"Rear iron sight not at screen center: {rear_x=}, {rear_y=}"
+    )
+    assert front_z < rear_z < -0.2, (
+        f"Barrel must point forward and rear sight must be visible: {front_z=}, {rear_z=}"
+    )
+    assert "return true;" in pose_java, (
+        "The G17 ADS pose must skip the vanilla duplicate item transforms"
+    )
+
+    print("OK: FPS barrel points forward and rear sight ADS X/Y alignment calibrated.")
     print("OK: 83 3D G17 cubes, first/third-person displays, and 4 PNG textures validated.")
 
 

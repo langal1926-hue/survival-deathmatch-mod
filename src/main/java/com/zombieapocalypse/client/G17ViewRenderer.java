@@ -27,10 +27,10 @@ import net.neoforged.neoforge.client.event.RenderPlayerEvent;
  * arms without the standard Minecraft arm-space transforms. The result was
  * enormous disconnected arms and the gun outside the screen.
  *
- * This implementation renders the arms with the same model-space correction as
- * vanilla ItemInHandRenderer.renderPlayerArm, while allowing the game to draw
- * the pistol normally afterward. ADS item movement is handled separately
- * through G17ClientExtensions, once and only once.
+ * Arms use the vanilla model-space correction but stay low enough to avoid
+ * blocking the center-aligned iron sights. The actual pistol is rendered once
+ * through the vanilla item pipeline; G17ClientExtensions owns its complete
+ * hip-fire/ADS camera-space item transform.
  */
 @EventBusSubscriber(modid = ZombieApocalypseMod.MOD_ID, value = Dist.CLIENT,
         bus = EventBusSubscriber.Bus.GAME)
@@ -56,8 +56,8 @@ public final class G17ViewRenderer {
         float ads = Mth.clamp(ClientGunInput.getAimBlend(), 0.0F, 1.0F);
         int side = player.getMainArm() == HumanoidArm.RIGHT ? 1 : -1;
 
-        // Critically: do NOT cancel the event. Vanilla renders the G17 after
-        // these arms, avoiding duplicate item transforms and sky-sized models.
+        // Do NOT cancel the event. Vanilla renders the G17 after
+        // these arms, preventing duplicate item rendering.
         drawArm(event.getPoseStack(), event.getMultiBufferSource(),
                 event.getPackedLight(), renderer, player, side, ads,
                 event.getEquipProgress(), false);
@@ -85,18 +85,22 @@ public final class G17ViewRenderer {
 
         // Use compact vanilla-like coordinates so only the FOREARMS enter
         // the bottom portion of the screen, not whole oversized player arms.
+        // Keep both hands BELOW the iron sights, not in front of the
+        // crosshair. Hip fire is a single visible right/left forearm;
+        // when aiming, the support forearm enters under the weapon.
         float horizontal = supporting
-                ? Mth.lerp(ads, 0.64F, 0.37F)
-                : Mth.lerp(ads, 0.64F, 0.36F);
+                ? Mth.lerp(ads, 0.61F, 0.25F)
+                : Mth.lerp(ads, 0.60F, 0.24F);
         float vertical = supporting
-                ? Mth.lerp(ads, -0.64F, -0.47F)
-                : Mth.lerp(ads, -0.60F, -0.46F);
-        float depth = supporting ? -0.80F : -0.72F;
+                ? Mth.lerp(ads, -0.78F, -0.77F)
+                : Mth.lerp(ads, -0.66F, -0.72F);
+        float depth = supporting ? -0.92F : -0.84F;
         poseStack.translate(side * horizontal,
                 vertical - equipProgress * 0.50F, depth);
         poseStack.mulPose(Axis.YP.rotationDegrees(
-                side * (supporting ? Mth.lerp(ads, 42.0F, 23.0F)
-                        : Mth.lerp(ads, 45.0F, 27.0F))));
+                side * (supporting ? Mth.lerp(ads, 36.0F, 18.0F)
+                        : Mth.lerp(ads, 40.0F, 18.0F))));
+        poseStack.scale(0.88F, 0.88F, 0.88F);
 
         // Vanilla's established PlayerRenderer.renderRight/LeftHand matrix.
         // Omitting this block was responsible for the giant dislocated hands.
