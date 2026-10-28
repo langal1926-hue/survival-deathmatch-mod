@@ -31,8 +31,9 @@ import net.neoforged.neoforge.client.event.RenderPlayerEvent;
  * No third-party hand model, animation, transforms or assets are copied.
  * PlayerRenderer supplies the player's real skin and sleeve textures.
  */
-@EventBusSubscriber(modid = ZombieApocalypseMod.MOD_ID, value = Dist.CLIENT,
-        bus = EventBusSubscriber.Bus.GAME)
+// Legacy custom-G17 code kept for world/save compatibility only.
+// NOT registered with either NeoForge event bus; the separate native TaCZ
+// mod owns input, R reload binding, first-person rendering and HUD.
 public final class G17ViewRenderer {
     // Original camera-space grip positions relative to the already calibrated
     // G17 item pivot (its model contains a rear grip at model +Z). A positive

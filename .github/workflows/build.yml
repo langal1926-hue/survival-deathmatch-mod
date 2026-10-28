@@ -27,5 +27,8 @@ jobs:
       - name: Verify optional licensed G17 importer syntax
         run: python3 -m py_compile tools/import_tacz_g17.py
 
+      - name: Verify native TaCZ integration and legacy G17 isolation
+        run: python3 scripts/check_tacz_native.py
+
       - name: Build with Gradle
         run: bash ./gradlew build
