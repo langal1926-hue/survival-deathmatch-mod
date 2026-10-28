@@ -41,8 +41,7 @@ python scripts/build_modpack.py --jar-dir build/libs --output dist/Zombie-Apocal
 
 ## 아직 개발 중인 사항
 
-- TaCZ 총기를 실제 사용할 14종으로 제한 (권총 3, SMG 2, AR 4, 산탄총 3, 저격총 2)
-- **광질·제작 금지**, 건축자재는 상인 판매
+- TaCZ 총기 14종 제한과 [채굴·제작 금지](SURVIVAL_RULES.md)는 구현했습니다. 건축자재 상인 판매는 다음 단계입니다.
 - 맵 지정 상자만 **60분 간격으로 재보급**, 플레이어 설치 상자와 개인 창고는 영구 제외
 - 감염자 잔해 파밍, 암상인, 특수 보급품 및 경제 시스템
 

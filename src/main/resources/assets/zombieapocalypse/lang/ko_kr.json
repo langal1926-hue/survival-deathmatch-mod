@@ -10,5 +10,6 @@
   "hud.zombieapocalypse.reloading": "장전 후딜",
   "hud.zombieapocalypse.empty": "탄창 없음",
   "hud.zombieapocalypse.ready": "준비 완료",
-  "hud.zombieapocalypse.reload_key": "R 장전"
+  "hud.zombieapocalypse.reload_key": "R 장전",
+  "message.zombieapocalypse.crafting_disabled": "이 서버에서는 제작과 가공을 사용할 수 없습니다. 물자는 파밍과 거래로 확보하세요."
 }

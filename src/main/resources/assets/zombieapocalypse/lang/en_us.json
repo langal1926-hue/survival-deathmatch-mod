@@ -10,5 +10,6 @@
   "hud.zombieapocalypse.reloading": "RELOAD LOCK",
   "hud.zombieapocalypse.empty": "EMPTY",
   "hud.zombieapocalypse.ready": "READY",
-  "hud.zombieapocalypse.reload_key": "R RELOAD"
+  "hud.zombieapocalypse.reload_key": "R RELOAD",
+  "message.zombieapocalypse.crafting_disabled": "Crafting and processing are disabled on this server. Find supplies through looting and trading."
 }
