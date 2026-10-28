@@ -137,6 +137,7 @@ public class G17PistolItem extends Item {
 
         setLoaded(stack, loaded + taken);
         player.getCooldowns().addCooldown(this, RELOAD_COOLDOWN_TICKS);
+        GunNetwork.sendReloadFeedback(player);
         level.playSound(null, player.blockPosition(), SoundEvents.IRON_TRAPDOOR_CLOSE,
                 SoundSource.PLAYERS, 0.8F, 1.5F);
         status(player, "G17: Reloaded " + (loaded + taken) + " / " + MAGAZINE_SIZE);
@@ -158,7 +159,8 @@ public class G17PistolItem extends Item {
         return amount - remaining;
     }
 
-    private static int getLoaded(ItemStack stack) {
+    /** Client HUD reads the same synchronized CUSTOM_DATA value used by firing. */
+    public static int getLoaded(ItemStack stack) {
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         return tag.contains(LOADED_KEY)
                 ? Math.max(0, Math.min(MAGAZINE_SIZE, tag.getInt(LOADED_KEY)))
