@@ -1,0 +1,76 @@
+{
+  "format_version": 1,
+  "description": "Server-authoritative 14-gun TaCZ default-pack loadouts; an absent scope means iron sights or gun's built-in optic. Only listed scopes and muzzle suppressors are permitted. No other attachments are allowed.",
+  "guns": [
+    {
+      "id": "tacz:glock_17",
+      "scope": "tacz:sight_acro_pistol",
+      "muzzle": "tacz:muzzle_silencer_mirage"
+    },
+    {
+      "id": "tacz:m1911",
+      "scope": null,
+      "muzzle": "tacz:muzzle_silencer_mirage"
+    },
+    {
+      "id": "tacz:deagle",
+      "scope": "tacz:sight_t1",
+      "muzzle": "tacz:muzzle_silencer_wraith"
+    },
+    {
+      "id": "tacz:hk_mp5a5",
+      "scope": "tacz:sight_t2",
+      "muzzle": "tacz:muzzle_silencer_ursus"
+    },
+    {
+      "id": "tacz:ump45",
+      "scope": "tacz:sight_t2",
+      "muzzle": "tacz:muzzle_silencer_phantom_s1"
+    },
+    {
+      "id": "tacz:ak47",
+      "scope": "tacz:sight_okp7",
+      "muzzle": "tacz:muzzle_silencer_ursus"
+    },
+    {
+      "id": "tacz:m4a1",
+      "scope": "tacz:sight_552",
+      "muzzle": "tacz:muzzle_silencer_knight_qd"
+    },
+    {
+      "id": "tacz:aug",
+      "scope": null,
+      "muzzle": "tacz:muzzle_silencer_knight_qd"
+    },
+    {
+      "id": "tacz:scar_h",
+      "scope": "tacz:scope_acog_ta31",
+      "muzzle": "tacz:muzzle_silencer_phantom_s1"
+    },
+    {
+      "id": "tacz:db_short",
+      "scope": null,
+      "muzzle": null
+    },
+    {
+      "id": "tacz:m870",
+      "scope": null,
+      "muzzle": "tacz:muzzle_silencer_sg"
+    },
+    {
+      "id": "tacz:m1014",
+      "scope": "tacz:sight_coyote",
+      "muzzle": "tacz:muzzle_silencer_sg"
+    },
+    {
+      "id": "tacz:m700",
+      "scope": "tacz:scope_standard_8x",
+      "muzzle": "tacz:muzzle_silencer_ursus"
+    },
+    {
+      "id": "tacz:ai_awp",
+      "scope": "tacz:scope_mk5hd",
+      "muzzle": "tacz:muzzle_silencer_ursus"
+    }
+  ]
+}
