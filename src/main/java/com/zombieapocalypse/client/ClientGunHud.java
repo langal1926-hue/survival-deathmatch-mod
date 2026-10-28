@@ -24,8 +24,9 @@ import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
  * pixel font to blur. Draw all labels at their original 1x size instead while
  * keeping the same on-screen footprint (~123x54 GUI pixels) and left position.
  */
-@EventBusSubscriber(modid = ZombieApocalypseMod.MOD_ID, value = Dist.CLIENT,
-        bus = EventBusSubscriber.Bus.MOD)
+// Legacy custom-G17 code kept for world/save compatibility only.
+// NOT registered with either NeoForge event bus; the separate native TaCZ
+// mod owns input, R reload binding, first-person rendering and HUD.
 public final class ClientGunHud {
     private static final int WIDTH = 123;
     private static final int HEIGHT = 54;
