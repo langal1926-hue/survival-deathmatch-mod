@@ -1,3 +1,4 @@
 {
-  "entity.zombieapocalypse.infected": "Infected Zombie"
+  "entity.zombieapocalypse.infected": "Infected Zombie",
+  "item.zombieapocalypse.noise_emitter": "Portable Alarm (Prototype)"
 }
