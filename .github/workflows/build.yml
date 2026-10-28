@@ -24,5 +24,8 @@ jobs:
       - name: Verify G17 model and textures
         run: python3 scripts/check_g17_assets.py
 
+      - name: Verify optional licensed G17 importer syntax
+        run: python3 -m py_compile tools/import_tacz_g17.py
+
       - name: Build with Gradle
         run: bash ./gradlew build
