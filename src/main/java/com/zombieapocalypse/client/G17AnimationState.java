@@ -22,6 +22,21 @@ public final class G17AnimationState {
     private static final int SHOOT_TICKS = 7;
     private static final int EQUIP_TICKS = 10;
 
+    // Original authored animation curves. Stored once to avoid allocating
+    // temporary arrays for every frame rendered.
+    private static final float[] RELOAD_LOWER_KEYS = {
+            0.0F, 0.0F, 0.12F, 0.52F, 0.32F, 1.0F,
+            0.61F, 0.88F, 0.83F, 0.35F, 1.0F, 0.0F
+    };
+    private static final float[] RELOAD_TILT_KEYS = {
+            0.0F, 0.0F, 0.20F, 0.35F, 0.46F, 1.0F,
+            0.72F, -0.28F, 1.0F, 0.0F
+    };
+    private static final float[] SUPPORT_REACH_KEYS = {
+            0.0F, 0.0F, 0.20F, 0.25F, 0.39F, 1.0F,
+            0.66F, 1.0F, 0.91F, 0.15F, 1.0F, 0.0F
+    };
+
     private static boolean holdingLastTick;
     private static int selectedSlot = -1;
     private static int ageTicks;
@@ -129,26 +144,9 @@ public final class G17AnimationState {
             float t = Mth.clamp((reloadTicks + partial) / RELOAD_TICKS, 0.0F, 1.0F);
             // Original, independent movement curves:
             // lower gun -> tilt to examine magazine -> re-seat -> return.
-            reload = track(t,
-                    0.0F, 0.0F,
-                    0.12F, 0.52F,
-                    0.32F, 1.0F,
-                    0.61F, 0.88F,
-                    0.83F, 0.35F,
-                    1.0F, 0.0F);
-            reloadAngle = track(t,
-                    0.0F, 0.0F,
-                    0.20F, 0.35F,
-                    0.46F, 1.0F,
-                    0.72F, -0.28F,
-                    1.0F, 0.0F);
-            supportReach = track(t,
-                    0.0F, 0.0F,
-                    0.20F, 0.25F,
-                    0.39F, 1.0F,
-                    0.66F, 1.0F,
-                    0.91F, 0.15F,
-                    1.0F, 0.0F);
+            reload = track(t, RELOAD_LOWER_KEYS);
+            reloadAngle = track(t, RELOAD_TILT_KEYS);
+            supportReach = track(t, SUPPORT_REACH_KEYS);
         }
 
         float equip = 0.0F;
@@ -170,7 +168,7 @@ public final class G17AnimationState {
     }
 
     /** Piecewise smooth keyframe curve: (time,value) pairs, no external data. */
-    private static float track(float time, float... points) {
+    private static float track(float time, float[] points) {
         if (time <= points[0]) {
             return points[1];
         }
