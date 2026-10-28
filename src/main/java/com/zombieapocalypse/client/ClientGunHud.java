@@ -29,11 +29,17 @@ import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 public final class ClientGunHud {
     private static final int WIDTH = 184;
     private static final int HEIGHT = 80;
-    private static final int MARGIN_RIGHT = 12;
-    private static final int MARGIN_BOTTOM = 48;
+    // Normal HUD size is 184 x 80; target a panel roughly two-thirds as large.
+    // Anchor beside the vanilla hotbar instead of consuming right-hand view.
+    private static final float HUD_SCALE = 2.0F / 3.0F;
+    private static final int MARGIN_LEFT = 6;
+    private static final int HOTBAR_GAP = 6;
+    private static final int MARGIN_BOTTOM = 6;
+    private static final int HOTBAR_WIDTH = 182;
+    private static final int HOTBAR_HEIGHT = 22;
     private static final int RELOAD_LOCK_TICKS = 25;
 
-    private static final int BACKGROUND = 0xD8141B27;
+    private static final int BACKGROUND = 0xB0141B27;
     private static final int EDGE = 0xFF364557;
     private static final int WHITE = 0xFFF3F7FD;
     private static final int MUTED = 0xFF9CABBE;
@@ -82,9 +88,34 @@ public final class ClientGunHud {
         int reserve = countReserveAmmo(mc.player);
         String reserveLabel = mc.player.getAbilities().instabuild ? "∞" : Integer.toString(reserve);
 
-        int x = graphics.guiWidth() - WIDTH - MARGIN_RIGHT;
-        int y = graphics.guiHeight() - HEIGHT - MARGIN_BOTTOM;
+        // Vanilla hotbar spans 182 GUI pixels centered horizontally.
+        // On smaller GUI scales, shrink just enough to fit beside it.
+        int hotbarLeft = (graphics.guiWidth() - HOTBAR_WIDTH) / 2;
+        float spaceOnLeft = hotbarLeft - HOTBAR_GAP - MARGIN_LEFT;
+        float scale = Math.min(HUD_SCALE, spaceOnLeft / WIDTH);
+
+        final int anchorX;
+        final int anchorY;
+        if (scale < 0.50F) {
+            // Truly narrow GUI: avoid overlapping the hotbar by placing the
+            // HUD just above it at the lower-left edge.
+            scale = HUD_SCALE;
+            anchorX = MARGIN_LEFT;
+            anchorY = Math.max(4, graphics.guiHeight() - HOTBAR_HEIGHT
+                    - (int) Math.ceil(HEIGHT * scale) - 12);
+        } else {
+            int displayWidth = (int) Math.ceil(WIDTH * scale);
+            int displayHeight = (int) Math.ceil(HEIGHT * scale);
+            anchorX = Math.max(MARGIN_LEFT, hotbarLeft - HOTBAR_GAP - displayWidth);
+            anchorY = Math.max(4, graphics.guiHeight() - displayHeight - MARGIN_BOTTOM);
+        }
+
         Font font = mc.font;
+        graphics.pose().pushPose();
+        graphics.pose().translate(anchorX, anchorY, 0.0F);
+        graphics.pose().scale(scale, scale, 1.0F);
+        int x = 0;
+        int y = 0;
 
         // Frame and left accent. Keep the panel clear of the crosshair and hotbar.
         graphics.fill(x, y, x + WIDTH, y + HEIGHT, BACKGROUND);
@@ -135,6 +166,7 @@ public final class ClientGunHud {
         }
         drawRight(graphics, font, Component.translatable("hud.zombieapocalypse.reload_key"),
                 x + WIDTH - 10, y + 63, MUTED);
+        graphics.pose().popPose();
     }
 
     private static void drawRight(GuiGraphics graphics, Font font, Component text,
