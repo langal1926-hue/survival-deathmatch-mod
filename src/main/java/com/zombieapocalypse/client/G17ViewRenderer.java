@@ -108,7 +108,9 @@ public final class G17ViewRenderer {
             // While ADS comes in, the wrist moves LEFT and UP with the gun
             // instead of staying in the bottom-right screen corner.
             x = held.x() - mainSide * Mth.lerp(ads, 0.16F, 0.26F);
-            y = held.y() + Mth.lerp(ads, 0.14F, -0.05F)
+            // Small lift at hip fire, larger lift in ADS via the gun's own
+            // upward motion. Keep the forearm below the centered sight.
+            y = held.y() + Mth.lerp(ads, 0.00F, -0.12F)
                     + motion.reload() * 0.12F;
             z = held.z() + Mth.lerp(ads, 0.08F, 0.12F);
         } else {
@@ -117,7 +119,7 @@ public final class G17ViewRenderer {
             // was lowered by 0.22 and often vanished below the hotbar).
             float reach = motion.supportReach();
             float baseX = held.x() - mainSide * Mth.lerp(ads, 0.48F, 0.17F);
-            float baseY = held.y() - Mth.lerp(ads, 0.12F, 0.14F);
+            float baseY = held.y() - Mth.lerp(ads, 0.13F, 0.20F);
             float baseZ = held.z() + 0.06F;
             x = Mth.lerp(reach, baseX, held.x() - mainSide * 0.30F);
             y = Mth.lerp(reach, baseY, held.y() + 0.34F);
