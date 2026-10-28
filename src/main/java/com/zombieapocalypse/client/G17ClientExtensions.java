@@ -38,8 +38,9 @@ import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsE
  * targets. Both renders sample the same item animation tracks.
  * Minecraft still handles rendering the actual item model after this hook.
  */
-@EventBusSubscriber(modid = ZombieApocalypseMod.MOD_ID, value = Dist.CLIENT,
-        bus = EventBusSubscriber.Bus.MOD)
+// Legacy custom-G17 code kept for world/save compatibility only.
+// NOT registered with either NeoForge event bus; the separate native TaCZ
+// mod owns input, R reload binding, first-person rendering and HUD.
 public final class G17ClientExtensions {
     private static final float HIP_X = 0.52F;
     private static final float HIP_Y = -0.50F;
