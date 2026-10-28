@@ -3,6 +3,7 @@ package com.zombieapocalypse;
 import com.mojang.logging.LogUtils;
 import com.zombieapocalypse.entity.InfectedZombie;
 import com.zombieapocalypse.entity.ModEntities;
+import com.zombieapocalypse.item.ModItems;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
@@ -16,6 +17,7 @@ public class ZombieApocalypseMod {
 
     public ZombieApocalypseMod(IEventBus modEventBus) {
         ModEntities.ENTITY_TYPES.register(modEventBus);
+        ModItems.ITEMS.register(modEventBus);
         modEventBus.addListener(this::registerAttributes);
         LOGGER.info("Zombie Apocalypse SMP mod initialized.");
     }
