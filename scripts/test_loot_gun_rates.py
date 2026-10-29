@@ -57,7 +57,7 @@ class GunLootTests(unittest.TestCase):
         self.assertEqual(set(found), allowed)
 
     def test_generic_supply_pool_cannot_spawn_additional_guns(self):
-        supply_section = FILLER.split("private static List<Drop> supplyPool(")[1].split("private static ItemStack ammo(")[0]
+        supply_section = FILLER.split("private static List<Drop> supplyPool(")[1].split("private static List<ResourceLocation> eligibleAmmoIds(")[0]
         self.assertNotIn("gun(drops", supply_section)
         self.assertNotIn("makeGun(", supply_section)
         self.assertIn("if (emptySlots.isEmpty()) return 0", FILLER)
