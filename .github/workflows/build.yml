@@ -39,6 +39,9 @@ jobs:
       - name: Test one-file modpack packaging (offline)
         run: python3 -m unittest discover -s scripts -p 'test_modpack.py' -v
 
+      - name: Check merchant chest and bed survival permissions
+        run: python3 -m unittest discover -s scripts -p 'test_merchant_placements.py' -v
+
       - name: Build with Gradle
         run: bash ./gradlew build
 
