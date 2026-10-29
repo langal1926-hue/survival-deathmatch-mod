@@ -2,6 +2,8 @@ package com.zombieapocalypse.survival;
 
 import com.zombieapocalypse.ZombieApocalypseMod;
 import java.util.UUID;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -12,6 +14,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.AbstractFurnaceBlock;
 import net.minecraft.world.level.block.AnvilBlock;
+import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.BrewingStandBlock;
@@ -23,6 +26,8 @@ import net.minecraft.world.level.block.GrindstoneBlock;
 import net.minecraft.world.level.block.LoomBlock;
 import net.minecraft.world.level.block.SmithingTableBlock;
 import net.minecraft.world.level.block.StonecutterBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BedPart;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -41,7 +46,7 @@ public final class SurvivalRuleEvents {
     private static final Component NO_MINING = Component.literal(
             "맵의 블록은 채굴할 수 없습니다. 자신이 설치한 건축물만 철거할 수 있습니다.");
     private static final Component NO_BUILDING = Component.literal(
-            "전용 건축자재만 설치할 수 있습니다. 건축자재는 상인에게 구매해야 합니다.");
+            "허용된 건축자재, 상자, 침대만 설치할 수 있습니다.");
     private static final Component NO_CRAFTING = Component.literal(
             "이 서버에서는 제작 시설을 사용할 수 없습니다. 아이템은 파밍과 거래로 획득하세요.");
 
@@ -60,7 +65,15 @@ public final class SurvivalRuleEvents {
 
         ConstructionLedger ledger = ConstructionLedger.get(level);
         if (isAdminBuilder(player)) {
-            // Avoid stale ownership when admins edit buildings by hand.
+            // Both halves must be untracked when an operator removes a bed.
+            BlockState current = level.getBlockState(event.getPos());
+            if (current.getBlock() instanceof BedBlock) {
+                Direction facing = current.getValue(BedBlock.FACING);
+                BlockPos other = event.getPos().relative(
+                        current.getValue(BedBlock.PART) == BedPart.FOOT
+                                ? facing : facing.getOpposite());
+                ledger.forget(other);
+            }
             ledger.forget(event.getPos());
             return;
         }
@@ -71,7 +84,22 @@ public final class SurvivalRuleEvents {
             player.displayClientMessage(NO_MINING, true);
             return;
         }
-        // Only an owner-controlled constructed block can be dismantled.
+
+        // A bed occupies two coordinates. Both halves must belong to this
+        // player, and both ownership entries must disappear on dismantling.
+        BlockState state = level.getBlockState(event.getPos());
+        if (state.getBlock() instanceof BedBlock) {
+            Direction facing = state.getValue(BedBlock.FACING);
+            BlockPos other = event.getPos().relative(
+                    state.getValue(BedBlock.PART) == BedPart.FOOT ? facing : facing.getOpposite());
+            if (!owner.equals(ledger.owner(other))
+                    || !(level.getBlockState(other).getBlock() instanceof BedBlock)) {
+                event.setCanceled(true);
+                player.displayClientMessage(NO_MINING, true);
+                return;
+            }
+            ledger.forget(other);
+        }
         ledger.forget(event.getPos());
     }
 
@@ -82,22 +110,61 @@ public final class SurvivalRuleEvents {
             return;
         }
 
-        if (isAdminBuilder(player)) {
-            // Creative operator edits form the base map, not player-owned builds.
-            ConstructionLedger.get(level).forget(event.getPos());
+        ConstructionLedger ledger = ConstructionLedger.get(level);
+        if (event instanceof BlockEvent.EntityMultiPlaceEvent multi) {
+            // Beds fire MultiPlace with both halves; vanilla already validated
+            // the two placement coordinates. Never allow unrelated multi-block
+            // changes to bypass the normal map protection.
+            if (!(event.getPlacedBlock().getBlock() instanceof BedBlock)
+                    || (!isAdminBuilder(player)
+                        && !isAuthorizedPlacement(player, event.getPlacedBlock().getBlock()))) {
+                event.setCanceled(true);
+                player.displayClientMessage(NO_BUILDING, true);
+                return;
+            }
+            for (var snapshot : multi.getReplacedBlockSnapshots()) {
+                if (!(level.getBlockState(snapshot.getPos()).getBlock() instanceof BedBlock)) {
+                    event.setCanceled(true);
+                    player.displayClientMessage(NO_BUILDING, true);
+                    return;
+                }
+            }
+            for (var snapshot : multi.getReplacedBlockSnapshots()) {
+                if (isAdminBuilder(player)) ledger.forget(snapshot.getPos());
+                else ledger.record(snapshot.getPos(), player.getUUID());
+            }
             return;
         }
 
-        // Multi-block modifications (doors, beds, etc.) are not supported
-        // by the restricted construction catalog.
-        if (event instanceof BlockEvent.EntityMultiPlaceEvent
-                || !isAuthorizedPlacement(player, event.getPlacedBlock().getBlock())) {
+        if (isAdminBuilder(player)) {
+            // Creative operator edits form the base map, not player-owned builds.
+            ledger.forget(event.getPos());
+            return;
+        }
+
+        if (!isAuthorizedPlacement(player, event.getPlacedBlock().getBlock())
+                || (event.getPlacedBlock().getBlock() == Blocks.CHEST
+                    && chestWouldJoinUnownedMapChest(level, event.getPos(), player.getUUID()))) {
             event.setCanceled(true);
             player.displayClientMessage(NO_BUILDING, true);
             return;
         }
 
-        ConstructionLedger.get(level).record(event.getPos(), player.getUUID());
+        ledger.record(event.getPos(), player.getUUID());
+    }
+
+    private static boolean chestWouldJoinUnownedMapChest(
+            ServerLevel level, BlockPos placed, UUID owner) {
+        // Joining a loot-map chest would turn it into a double chest and break
+        // its refill eligibility. Adjacent chests must belong to the builder.
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            BlockPos neighbor = placed.relative(direction);
+            if (level.getBlockState(neighbor).getBlock() == Blocks.CHEST
+                    && !owner.equals(ConstructionLedger.get(level).owner(neighbor))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isAuthorizedPlacement(ServerPlayer player, Block block) {
