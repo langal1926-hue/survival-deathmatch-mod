@@ -66,7 +66,7 @@ public final class LootChestCommands {
         int count = data.register(level, pos, profile, System.currentTimeMillis());
         if (count < 0) return error(source, "파밍 상자 등록에 실패했습니다.");
         source.sendSuccess(() -> Component.literal("파밍 상자 등록 완료: " + profile.id()
-                + " / 생성된 아이템 묶음 " + count + " / 다음 보충 60분 후"), false);
+                + " / 생성된 아이템 묶음 " + count + " / 모든 아이템을 꺼내면 60분 카운트다운 시작"), false);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -81,11 +81,20 @@ public final class LootChestCommands {
     private static int status(CommandSourceStack source) {
         BlockPos pos = target(source);
         if (pos == null) return error(source, "상자를 바라보세요.");
-        LootChestData.Entry entry = LootChestData.get(source.getLevel()).lookup(pos);
+        ServerLevel level = source.getLevel();
+        long now = System.currentTimeMillis();
+        LootChestData.Entry entry = LootChestData.get(level).observe(level, pos, now);
         if (entry == null) return error(source, "등록되지 않은 일반/개인 상자입니다.");
-        long seconds = Math.max(0, (entry.refillAt() - System.currentTimeMillis() + 999L) / 1000L);
+
+        String message;
+        if (entry.waitingForEmpty()) {
+            message = "상자에 아이템이 남아 있습니다. 완전히 비우면 60분 타이머가 시작됩니다.";
+        } else {
+            long seconds = Math.max(0L, (entry.refillAt() - now + 999L) / 1000L);
+            message = "상자가 비었습니다. 재보급까지 약 " + seconds + "초";
+        }
         source.sendSuccess(() -> Component.literal("프로필: " + entry.profile().id()
-                + " / 재보급까지 약 " + seconds + "초 (청크가 로드된 경우)"), false);
+                + " / " + message), false);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -94,9 +103,10 @@ public final class LootChestCommands {
         if (pos == null) return error(source, "상자를 바라보세요.");
         int filled = LootChestData.get(source.getLevel())
                 .refillNow(source.getLevel(), pos, System.currentTimeMillis());
+        if (filled == -2) return error(source, "상자를 완전히 비워야 수동 재보급할 수 있습니다.");
         if (filled < 0) return error(source, "등록된 단일 맵 상자만 즉시 재보급할 수 있습니다.");
-        source.sendSuccess(() -> Component.literal("수동 재보급 완료: 빈 칸에 " + filled
-                + "개 묶음 추가 / 다음 자동 재보급은 60분 후"), false);
+        source.sendSuccess(() -> Component.literal("수동 재보급 완료: " + filled
+                + "개 묶음 생성 / 다시 모두 비우면 60분 타이머 시작"), false);
         return Command.SINGLE_SUCCESS;
     }
 
