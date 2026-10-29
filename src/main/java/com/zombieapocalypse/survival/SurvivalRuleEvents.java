@@ -65,7 +65,15 @@ public final class SurvivalRuleEvents {
 
         ConstructionLedger ledger = ConstructionLedger.get(level);
         if (isAdminBuilder(player)) {
-            // Avoid stale ownership when admins edit buildings by hand.
+            // Both halves must be untracked when an operator removes a bed.
+            BlockState current = level.getBlockState(event.getPos());
+            if (current.getBlock() instanceof BedBlock) {
+                Direction facing = current.getValue(BedBlock.FACING);
+                BlockPos other = event.getPos().relative(
+                        current.getValue(BedBlock.PART) == BedPart.FOOT
+                                ? facing : facing.getOpposite());
+                ledger.forget(other);
+            }
             ledger.forget(event.getPos());
             return;
         }
