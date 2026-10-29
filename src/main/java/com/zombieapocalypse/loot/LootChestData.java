@@ -18,12 +18,14 @@ import net.minecraft.world.level.saveddata.SavedData;
 
 /**
  * Operator-designated map chests only; no inventory is automatically enrolled.
- * SavedData is dimension-local and persists the next real-world refill deadline.
+ * The 60-minute real-world timer starts only AFTER a chest becomes empty.
+ * A stocked chest has refillAt = 0, meaning it is waiting to be looted.
  * Unloaded chunks are never loaded just to replenish supplies.
  */
 public final class LootChestData extends SavedData {
     public static final long REFILL_MILLIS = 60L * 60L * 1000L;
     private static final String FILE_NAME = "zombieapocalypse_map_loot";
+    private static final int DATA_VERSION = 2; // Previously counted from the last refill.
     private static final Factory<LootChestData> FACTORY =
             new Factory<>(LootChestData::new, LootChestData::load);
 
@@ -34,7 +36,10 @@ public final class LootChestData extends SavedData {
         }
     }
 
-    public record Entry(Profile profile, long refillAt) {}
+    /** refillAt == 0 means the chest still has loot / no countdown is active. */
+    public record Entry(Profile profile, long refillAt) {
+        public boolean waitingForEmpty() { return refillAt == 0L; }
+    }
 
     private final Map<Long, Entry> chests = new HashMap<>();
 
@@ -67,7 +72,9 @@ public final class LootChestData extends SavedData {
         ChestBlockEntity chest = (ChestBlockEntity) level.getBlockEntity(pos);
         if (chest == null || !chest.isEmpty()) return -1;
         int inserted = LootChestFiller.fill(level, chest, profile);
-        chests.put(pos.asLong(), new Entry(profile, now + REFILL_MILLIS));
+        if (inserted <= 0) return -1;
+        // Fresh loot does NOT start the timer. It begins once fully looted.
+        chests.put(pos.asLong(), new Entry(profile, 0L));
         setDirty();
         return inserted;
     }
@@ -78,16 +85,65 @@ public final class LootChestData extends SavedData {
         return true;
     }
 
-    /** Admin test hook. Does not overwrite existing contents. */
+    /**
+     * OP test override: refill immediately, but ONLY an entirely empty chest.
+     * This cannot be used to stack loot over a partially looted chest.
+     * Return -2 if still stocked, -1 if not a registered eligible map chest.
+     */
     public int refillNow(ServerLevel level, BlockPos pos, long now) {
         Entry entry = lookup(pos);
         if (entry == null || !eligible(level, pos)) return -1;
         ChestBlockEntity chest = (ChestBlockEntity) level.getBlockEntity(pos);
         if (chest == null) return -1;
-        int items = LootChestFiller.fill(level, chest, entry.profile());
-        chests.put(pos.asLong(), new Entry(entry.profile(), now + REFILL_MILLIS));
-        setDirty();
-        return items;
+        if (!chest.isEmpty()) return -2;
+
+        int inserted = LootChestFiller.fill(level, chest, entry.profile());
+        if (inserted > 0) {
+            chests.put(pos.asLong(), new Entry(entry.profile(), 0L));
+            setDirty();
+        }
+        return inserted;
+    }
+
+    /**
+     * Called by /za_loot status to observe an emptied chest immediately,
+     * rather than waiting for the next 100-tick background scan.
+     */
+    public Entry observe(ServerLevel level, BlockPos pos, long now) {
+        Entry entry = lookup(pos);
+        if (entry == null || !level.hasChunkAt(pos) || !eligible(level, pos)) {
+            return null;
+        }
+        Entry updated = advance(level, pos, entry, now);
+        if (!updated.equals(entry)) {
+            chests.put(pos.asLong(), updated);
+            setDirty();
+        }
+        return updated;
+    }
+
+    /**
+     * Stock present: no timer (or cancel an existing timer, if loot returned).
+     * Fully empty for the first time: start a 60-minute countdown.
+     * Still empty after the countdown: generate a new batch and return to idle.
+     */
+    private static Entry advance(ServerLevel level, BlockPos pos, Entry entry, long now) {
+        if (!(level.getBlockEntity(pos) instanceof ChestBlockEntity chest)) return entry;
+
+        if (!chest.isEmpty()) {
+            return entry.waitingForEmpty() ? entry : new Entry(entry.profile(), 0L);
+        }
+        if (entry.waitingForEmpty()) {
+            return new Entry(entry.profile(), now + REFILL_MILLIS);
+        }
+        if (now < entry.refillAt()) {
+            return entry;
+        }
+
+        int inserted = LootChestFiller.fill(level, chest, entry.profile());
+        // Refill and wait for players to empty the new batch again.
+        // In the unlikely case no loot could be produced, retry later.
+        return new Entry(entry.profile(), inserted > 0 ? 0L : now + REFILL_MILLIS);
     }
 
     public void tick(ServerLevel level, long now) {
@@ -103,10 +159,9 @@ public final class LootChestData extends SavedData {
                 changed = true;
                 continue;
             }
-            if (entry.getValue().refillAt() > now) continue;
-            if (level.getBlockEntity(pos) instanceof ChestBlockEntity chest) {
-                LootChestFiller.fill(level, chest, entry.getValue().profile());
-                entry.setValue(new Entry(entry.getValue().profile(), now + REFILL_MILLIS));
+            Entry advanced = advance(level, pos, entry.getValue(), now);
+            if (!advanced.equals(entry.getValue())) {
+                entry.setValue(advanced);
                 changed = true;
             }
         }
@@ -116,17 +171,22 @@ public final class LootChestData extends SavedData {
     public static LootChestData load(CompoundTag root, HolderLookup.Provider registries) {
         LootChestData data = new LootChestData();
         ListTag list = root.getList("chests", Tag.TAG_COMPOUND);
+        // V1 stored a timer starting at registration/refill. Those deadlines
+        // are invalid with the new rule. Preserve registered chests/profiles,
+        // reset timers, and let the first observed empty state start 60 minutes.
+        boolean legacy = root.getInt("formatVersion") != DATA_VERSION;
         for (Tag raw : list) {
             CompoundTag tag = (CompoundTag) raw;
             try {
                 long pos = tag.getLong("pos");
                 Profile profile = Profile.valueOf(tag.getString("profile"));
-                long deadline = tag.getLong("refillAt");
+                long deadline = legacy ? 0L : Math.max(0L, tag.getLong("refillAt"));
                 data.chests.put(pos, new Entry(profile, deadline));
             } catch (IllegalArgumentException invalid) {
                 // Older / unknown profile IDs fail closed.
             }
         }
+        if (legacy) data.setDirty();
         return data;
     }
 
@@ -140,6 +200,7 @@ public final class LootChestData extends SavedData {
             tag.putLong("refillAt", entry.refillAt());
             list.add(tag);
         });
+        root.putInt("formatVersion", DATA_VERSION);
         root.put("chests", list);
         return root;
     }
