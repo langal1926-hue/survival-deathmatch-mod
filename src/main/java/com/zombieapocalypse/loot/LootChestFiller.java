@@ -1,6 +1,7 @@
 package com.zombieapocalypse.loot;
 
 import com.tacz.guns.api.TimelessAPI;
+import com.tacz.guns.api.item.IAttachment;
 import com.tacz.guns.api.item.builder.AmmoItemBuilder;
 import com.tacz.guns.api.item.builder.AttachmentItemBuilder;
 import com.tacz.guns.api.item.builder.GunItemBuilder;
@@ -169,7 +170,17 @@ public final class LootChestFiller {
         if (!TaCZWeaponAllowlist.approvedLooseAttachmentIds().contains(attachmentId)) {
             throw new IllegalStateException("Forbidden accessory in map chest: " + attachmentId);
         }
-        return AttachmentItemBuilder.create().setId(attachmentId).build();
+        ItemStack built = AttachmentItemBuilder.create().setId(attachmentId).build();
+        // The policy ID alone isn't enough: validate the encoded TaCZ stack
+        // that will actually be inserted into the chest.
+        if (!(built.getItem() instanceof IAttachment attached)
+                || !attachmentId.equals(attached.getAttachmentId(built))
+                || !TaCZWeaponAllowlist.isAllowedInventoryStack(built)) {
+            ZombieApocalypseMod.LOGGER.error(
+                    "Rejecting invalid TaCZ attachment from map loot builder: {}", attachmentId);
+            return ItemStack.EMPTY;
+        }
+        return built;
     }
 
     private static ItemStack pick(List<Drop> pool, RandomSource random) {
