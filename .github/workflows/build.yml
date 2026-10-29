@@ -36,6 +36,9 @@ jobs:
       - name: Verify exact weapon loot probabilities
         run: python3 -m unittest discover -s scripts -p 'test_loot_gun_rates.py' -v
 
+      - name: Test balanced ammo and compatible accessory drops
+        run: python3 -m unittest discover -s scripts -p 'test_loot_ammo_accessories.py' -v
+
       - name: Test one-file modpack packaging (offline)
         run: python3 -m unittest discover -s scripts -p 'test_modpack.py' -v
 

@@ -101,6 +101,11 @@ public final class TaCZWeaponAllowlist {
         return GUNS.containsKey(gunId);
     }
 
+    /** Approved compatible scope/muzzle IDs for a particular allowed firearm. */
+    public static Loadout approvedLoadout(ResourceLocation gunId) {
+        return GUNS.get(gunId);
+    }
+
     /**
      * Item pickups / server inventory scans reject ALL other TaCZ guns and
      * all stand-alone attachments except the selected sights and suppressors.
