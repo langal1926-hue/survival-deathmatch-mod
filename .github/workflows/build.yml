@@ -48,6 +48,9 @@ jobs:
       - name: Check merchant chest and bed survival permissions
         run: python3 -m unittest discover -s scripts -p 'test_merchant_placements.py' -v
 
+      - name: Verify TaCZ loot filtering and chest diagnostics
+        run: python3 -m unittest discover -s scripts -p 'test_tacz_loot_filter.py' -v
+
       - name: Build with Gradle
         run: bash ./gradlew build
 
