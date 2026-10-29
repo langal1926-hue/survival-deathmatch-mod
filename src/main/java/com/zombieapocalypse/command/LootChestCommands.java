@@ -3,6 +3,13 @@ package com.zombieapocalypse.command;
 import com.mojang.brigadier.Command;
 import com.zombieapocalypse.ZombieApocalypseMod;
 import com.zombieapocalypse.loot.LootChestData;
+import com.zombieapocalypse.compat.TaCZWeaponAllowlist;
+import com.tacz.guns.api.item.IAttachment;
+import com.tacz.guns.api.item.IGun;
+import java.util.ArrayList;
+import java.util.List;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
@@ -37,6 +44,8 @@ public final class LootChestCommands {
                         .executes(context -> status(context.getSource())))
                 .then(Commands.literal("refill")
                         .executes(context -> refill(context.getSource())))
+                .then(Commands.literal("audit")
+                        .executes(context -> audit(context.getSource())))
                 .then(Commands.literal("count")
                         .executes(context -> count(context.getSource()))));
     }
@@ -108,6 +117,61 @@ public final class LootChestCommands {
         source.sendSuccess(() -> Component.literal("수동 재보급 완료: " + filled
                 + "개 묶음 생성 / 다시 모두 비우면 60분 타이머 시작"), false);
         return Command.SINGLE_SUCCESS;
+    }
+
+    /**
+     * Read-only operator diagnosis. Works on an ordinary chest whether or not
+     * it was registered as a Zombie Apocalypse map-loot chest. This identifies
+     * TaCZ scopes added by other loot sources and shows the exact matching gun.
+     */
+    private static int audit(CommandSourceStack source) {
+        BlockPos pos = target(source);
+        if (pos == null || !(source.getLevel().getBlockEntity(pos) instanceof ChestBlockEntity chest)) {
+            return error(source, "6블록 안의 일반 상자를 바라보세요.");
+        }
+
+        int checked = 0;
+        int invalid = 0;
+        for (int slot = 0; slot < chest.getContainerSize(); slot++) {
+            ItemStack stack = chest.getItem(slot);
+            if (stack.isEmpty()) continue;
+            if (stack.getItem() instanceof IAttachment attachment) {
+                checked++;
+                ResourceLocation id = attachment.getAttachmentId(stack);
+                boolean allowed = TaCZWeaponAllowlist.isAllowedInventoryStack(stack);
+                if (!allowed) invalid++;
+
+                List<String> compatible = new ArrayList<>();
+                if (id != null) {
+                    for (ResourceLocation gunId : TaCZWeaponAllowlist.approvedGunIds()) {
+                        var loadout = TaCZWeaponAllowlist.approvedLoadout(gunId);
+                        if (id.equals(loadout.scope()) || id.equals(loadout.muzzle())) {
+                            compatible.add(gunId.getPath());
+                        }
+                    }
+                }
+                compatible.sort(String::compareTo);
+                final int displayedSlot = slot;
+                String message = "슬롯 " + displayedSlot + " / " + id
+                        + " / " + (allowed ? "서버 허용" : "서버 금지")
+                        + " / 호환 총기: " + (compatible.isEmpty() ? "없음" : String.join(", ", compatible));
+                source.sendSuccess(() -> Component.literal(message), false);
+            } else if (stack.getItem() instanceof IGun) {
+                checked++;
+                if (!TaCZWeaponAllowlist.isAllowedInventoryStack(stack)) {
+                    invalid++;
+                    ResourceLocation id = ((IGun) stack.getItem()).getGunId(stack);
+                    source.sendSuccess(() -> Component.literal(
+                            "서버에서 허용되지 않는 총기 발견: " + id), false);
+                }
+            }
+        }
+        final int total = checked;
+        final int banned = invalid;
+        source.sendSuccess(() -> Component.literal(
+                "상자 TaCZ 검사 완료: " + total + "개 확인, 금지 품목 " + banned
+                        + "개. 이 명령어는 아이템을 변경하지 않습니다."), false);
+        return 1;
     }
 
     private static int count(CommandSourceStack source) {
